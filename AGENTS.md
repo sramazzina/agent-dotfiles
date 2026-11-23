@@ -12,7 +12,6 @@ Touch only what you must. Clean up only your own mess. Don't "improve" adjacent 
 Define success criteria, then loop until verified; don't execute steps mechanically. (About HOW to reach a goal; does not override the ordered procedures elsewhere, e.g. Rule 16 or subagent-driven execution.)
 ## Rule 5 — Model only for judgment
 Use the model for classification, drafting, summarization, extraction. If code can answer (routing, retries, deterministic transforms), code answers.
-## Rule 6 — (retired; number reserved)
 ## Rule 7 — Surface conflicts, don't average them
 When two patterns contradict, pick one (more recent / more tested), say why, flag the other for cleanup. Never blend.
 ## Rule 10 — Checkpoint after every significant step
