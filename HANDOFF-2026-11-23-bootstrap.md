@@ -1,4 +1,44 @@
-# Handoff — bootstrap of `claude-config` (2026-11-23)
+# Handoff — agent-dotfiles (updated 2026-11-23, after PR #10 merge)
+
+Read this section first, then continue with the user in Italian (global Language Rules). The original bootstrap handoff is kept below as history; its open questions are all resolved.
+
+## Current state
+- Repo: `git@github.com:sramazzina/agent-dotfiles.git` (private, solo). Local clone: `/home/sramazzina/work/serasoft/agent-dotfiles`. Renamed from `claude-config` to reflect the multi-agent goal (Claude Code now; opencode, pi, goose later).
+- `main` = `425899a` (merge of PR #10, "agent-dotfiles core"). Feature branch deleted locally and on the remote. Issues #3–#9 closed by the merge.
+- Delivered: layered rules (`AGENTS.md` neutral universal, `profiles/dev.md` neutral dev, `rules/java.md` path-scoped, `agents/claude/{CLAUDE.md,dev.md}` Claude-only), skill `serena-query-project`, `mcp/servers.json` (context7, serena), `agents/claude/settings.fragment.json` (enforce + seed), idempotent `install.sh` (`--dry-run`, `--enable-dev <dir>`, `--help`), 53 bash tests (`bash tests/run.sh`), README, adapter notes for opencode/pi/goose.
+- Authoritative docs: `README.md` (usage, summary-line prefixes, exit codes), `docs/superpowers/specs/2026-11-23-agent-dotfiles-design.md` (design), `docs/superpowers/plans/2026-11-23-agent-dotfiles-core.md` (executed plan), `docs/verification.md` (verified Claude Code behaviour: `@~` imports, user rules via symlink incl. on file creation, skills via symlink).
+- `drafts/global-CLAUDE.md.proposed` is superseded by the layer files; it can be deleted.
+- GitHub labels: `type:*`, `area:*`, `priority:P0`–`P3` (default labels removed).
+
+## Rulings made during execution (user informed, not yet explicitly confirmed)
+1. `failed: <what>` summary prefix for hard failures (exit 1), distinct from `skipped:` (step not attempted).
+2. A symlinked `~/.claude/settings.json` is written through to its target (link kept, target mode preserved); a dangling link is `failed:`.
+
+## Known minor gaps (accepted as-is)
+pi NOTES lacks config details; write-failure branches of `install.sh` untested; `ccstatusline@latest` unpinned in the settings fragment; `CONTEXT7_API_KEY` briefly visible in argv during the first `claude mcp add` (CLI limitation, documented).
+
+## Next step: cutover on this machine (not started)
+The live `~/.claude` is still the pre-project configuration. Do it together with the user:
+1. `cd /home/sramazzina/work/serasoft/agent-dotfiles && ./install.sh --dry-run`; review every line with the user.
+2. `export CONTEXT7_API_KEY=...` only if context7 is not already registered (on this machine it is: expect `mcp-ok`). `./install.sh`. Expected: `~/.claude/CLAUDE.md` backed up to `~/.agent-dotfiles-backups/<ts>/` and linked; settings unchanged (mode 600, `autoMode` kept); `mcp-ok` for both servers; a second run is all `unchanged:`/`mcp-ok:`.
+3. Start a fresh Claude session and check `/memory` (universal layer imported via `~/.agent-dotfiles/AGENTS.md`).
+4. Expected gap: dev projects lose the dev rules until `~/.agent-dotfiles/install.sh --enable-dev <project>` is run in each; ask the user which projects, run it, and have them accept the one-time external-import dialog in each (declining disables the import permanently for that project).
+5. Repeat steps 1–4 on the other Linux servers (clone to `~/.agent-dotfiles` or anywhere; the installer creates the anchor).
+
+## Deferred (open issues)
+- #1 Generic migration path for existing projects (remove per-project duplicates of the global rules; keep deliberate opt-outs). Must be generic — projects live on other servers too. Audit context from this machine is in the issue.
+- #2 Plan B: per-language rules imported at session start (`--enable-dev --lang`). Verification showed path-scoped rules also trigger on file creation, so it is probably unnecessary.
+
+## Gotchas
+- `gh issue view` fails on a deprecated Projects field; use `gh api repos/sramazzina/agent-dotfiles/issues/<n>`.
+- opencode falls back to `~/.claude/CLAUDE.md` and would inherit Claude-only rules: when adding its adapter, give it its own AGENTS.md or set `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1`.
+- `settings.json` must stay a real local file (Claude Code writes `/model` changes back); never version it, nor `~/.claude.json`.
+
+---
+
+# History: original bootstrap handoff
+
+## Handoff — bootstrap of `claude-config` (2026-11-23)
 
 Origin: a `/doctor` + CLAUDE.md cleanup session run from `/home/sramazzina/work/serasoft/cardine`. The user decided to materialize the idea below as its own project in this folder. Read this file first, then continue the conversation with the user (in Italian, per the global Language Rules).
 
