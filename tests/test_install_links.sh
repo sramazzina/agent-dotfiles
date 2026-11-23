@@ -40,9 +40,13 @@ test_synced_untouched() {
   setup_home
   mkdir -p "$HOME/.claude/skills/synced"
   echo x > "$HOME/.claude/skills/synced/x"
+  local ino; ino="$(stat -c %i "$HOME/.claude/skills/synced")"
   run_install
   assert_eq "x" "$(cat "$HOME/.claude/skills/synced/x")" "synced content"
   [ ! -L "$HOME/.claude/skills/synced" ] || fail "synced became a link"
+  assert_eq "$ino" "$(stat -c %i "$HOME/.claude/skills/synced")" "synced inode"
+  assert_not_contains "$OUT" "synced" "summary mentions synced"
+  [ ! -e "$HOME/.agent-dotfiles-backups" ] || fail "synced was backed up"
 }
 
 test_anchor_moved_clone() {
@@ -71,6 +75,11 @@ test_dry_run_changes_nothing() {
   after="$(find "$HOME" | sort)"
   assert_eq "0" "$RC" "exit code"
   assert_eq "$before" "$after" "filesystem"
+  echo old > "$HOME/.claude/CLAUDE.md" 2>/dev/null || { mkdir -p "$HOME/.claude"; echo old > "$HOME/.claude/CLAUDE.md"; }
+  run_install --dry-run
+  assert_eq "old" "$(cat "$HOME/.claude/CLAUDE.md")" "real file kept in dry-run"
+  [ ! -L "$HOME/.claude/CLAUDE.md" ] || fail "dry-run linked over real file"
+  [ ! -e "$HOME/.agent-dotfiles-backups" ] || fail "dry-run created backup dir"
   [ -n "$OUT" ] || fail "no output"
   assert_eq "0" "$(printf '%s\n' "$OUT" | grep -vc '^DRY-RUN ' || true)" "lines without DRY-RUN prefix"
   assert_contains "$OUT" "DRY-RUN linked: $HOME/.claude/CLAUDE.md" "planned link"
@@ -88,4 +97,33 @@ test_usage_error() {
   setup_home
   run_install --bogus
   assert_eq "2" "$RC" "exit code"
+}
+
+test_clone_at_anchor_location() {
+  setup_home
+  mkdir "$HOME/.agent-dotfiles"
+  cp -a "$REPO_ROOT/install.sh" "$REPO_ROOT/agents" "$REPO_ROOT/rules" "$REPO_ROOT/skills" "$HOME/.agent-dotfiles/"
+  set +e
+  OUT="$(env PATH="$TEST_HOME/bin:$PATH" "$HOME/.agent-dotfiles/install.sh" 2>&1)"
+  set -e
+  [ -d "$HOME/.agent-dotfiles" ] && [ ! -L "$HOME/.agent-dotfiles" ] || fail "anchor not a real dir"
+  [ -f "$HOME/.agent-dotfiles/install.sh" ] || fail "repo damaged"
+  assert_contains "$OUT" "unchanged: $HOME/.agent-dotfiles" "anchor"
+  [ ! -e "$HOME/.agent-dotfiles-backups" ] || fail "repo was backed up"
+  assert_symlink_to "$HOME/.claude/CLAUDE.md" "$HOME/.agent-dotfiles/agents/claude/CLAUDE.md"
+  [ -e "$HOME/.claude/rules/java.md" ] || fail "rule link dangles"
+}
+
+test_backups_never_collide() {
+  setup_home
+  export AGENT_DOTFILES_TS=20000101-000000
+  mkdir -p "$HOME/.claude"
+  echo one > "$HOME/.claude/CLAUDE.md"
+  run_install
+  rm "$HOME/.claude/CLAUDE.md"; echo two > "$HOME/.claude/CLAUDE.md"
+  run_install
+  local n; n="$(ls -d "$HOME"/.agent-dotfiles-backups/*/ | wc -l)"
+  assert_eq "2" "$n" "backup dirs"
+  assert_eq "one" "$(cat "$HOME/.agent-dotfiles-backups/20000101-000000/.claude/CLAUDE.md")" "first backup"
+  assert_eq "two" "$(cat "$HOME/.agent-dotfiles-backups/20000101-000000-1/.claude/CLAUDE.md")" "second backup"
 }

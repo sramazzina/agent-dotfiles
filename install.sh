@@ -6,7 +6,10 @@ REPO_ROOT="$(cd "$(dirname "$(readlink -f "$0")")" && pwd -P)"
 DRY_RUN=0
 FAILED=0
 ENABLE_DEV_DIR=""
-BACKUP_DIR=""
+# AGENT_DOTFILES_TS overrides the backup timestamp (tests only).
+BACKUP_TS="${AGENT_DOTFILES_TS:-$(date +%Y%m%d-%H%M%S)}"
+BACKUP_DIR="$HOME/.agent-dotfiles-backups/$BACKUP_TS"
+BACKUP_READY=0
 
 usage() {
   cat <<'USAGE'
@@ -25,19 +28,30 @@ log() {
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
-backup_dir() {
-  [ -n "$BACKUP_DIR" ] || BACKUP_DIR="$HOME/.agent-dotfiles-backups/$(date +%Y%m%d-%H%M%S)"
-  printf '%s' "$BACKUP_DIR"
+# Pick the run's backup dir once, lazily: never reuse a dir left by an earlier run.
+init_backup_dir() {
+  [ "$BACKUP_READY" = 1 ] && return 0
+  local base="$BACKUP_DIR" n=0
+  while [ -e "$BACKUP_DIR" ]; do
+    n=$((n + 1)); BACKUP_DIR="$base-$n"
+  done
+  BACKUP_READY=1
 }
 
 # Move an existing file/dir/link into the run's backup dir, preserving its path relative to $HOME.
 backup_path() {
   local path="$1" rel dest
   rel="${path#"$HOME"/}"
-  dest="$(backup_dir)/$rel"
+  init_backup_dir
+  dest="$BACKUP_DIR/$rel"
   if [ "$DRY_RUN" = 0 ]; then
     mkdir -p "$(dirname "$dest")"
-    mv "$path" "$dest"
+    mv -n "$path" "$dest"
+    if [ -e "$path" ] || [ -L "$path" ] || ! { [ -e "$dest" ] || [ -L "$dest" ]; }; then
+      log "failed: backup of $path"
+      FAILED=1
+      return 1
+    fi
   fi
   log "backed-up: $path -> $dest"
 }
@@ -49,8 +63,14 @@ link_to() {
     log "unchanged: $target"
     return 0
   fi
+  # Never back up the clone itself (or anything inside it), e.g. a clone living at ~/.agent-dotfiles.
+  if [ ! -L "$target" ] && [ -e "$target" ]; then
+    case "$(readlink -f "$target")" in
+      "$REPO_ROOT"|"$REPO_ROOT"/*) log "unchanged: $target"; return 0 ;;
+    esac
+  fi
   if [ -e "$target" ] || [ -L "$target" ]; then
-    backup_path "$target"
+    backup_path "$target" || return 0
   fi
   if [ "$DRY_RUN" = 0 ]; then
     mkdir -p "$(dirname "$target")"
