@@ -1,0 +1,89 @@
+{
+  "enforce": {
+    "env": {
+      "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
+    },
+    "permissions": {
+      "defaultMode": "auto"
+    },
+    "hooks": {
+      "PreToolUse": [
+        {
+          "matcher": "",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "serena-hooks remind --client=claude-code"
+            }
+          ]
+        },
+        {
+          "matcher": "mcp__serena__*",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "serena-hooks auto-approve --client=claude-code"
+            }
+          ]
+        }
+      ],
+      "SessionStart": [
+        {
+          "matcher": "",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "serena-hooks activate --client=claude-code"
+            }
+          ]
+        }
+      ],
+      "Stop": [
+        {
+          "matcher": "",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "serena-hooks cleanup --client=claude-code"
+            }
+          ]
+        }
+      ]
+    },
+    "statusLine": {
+      "type": "command",
+      "command": "npx -y ccstatusline@latest",
+      "padding": 0,
+      "refreshInterval": 10
+    },
+    "enabledPlugins": {
+      "superpowers@superpowers-marketplace": true,
+      "playwright@claude-plugins-official": true
+    },
+    "extraKnownMarketplaces": {
+      "superpowers-marketplace": {
+        "source": {
+          "source": "github",
+          "repo": "obra/superpowers-marketplace"
+        }
+      }
+    },
+    "skillOverrides": {
+      "adaptive": "off",
+      "agentflow": "off",
+      "context_pipeline": "off",
+      "controlflow": "off",
+      "devops": "off",
+      "pr-draft": "off",
+      "pr-review": "off",
+      "refactor": "off",
+      "taskengine": "off",
+      "taskflow": "off",
+      "tdd": "off"
+    }
+  },
+  "seed": {
+    "model": "opus",
+    "effortLevel": "medium"
+  }
+}

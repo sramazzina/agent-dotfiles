@@ -127,6 +127,74 @@ scan_stale() {
   done
 }
 
+# Copy (not move) an existing file into the run's backup dir; the original stays until replaced.
+copy_to_backup() {
+  local path="$1" rel dest
+  rel="${path#"$HOME"/}"
+  init_backup_dir
+  dest="$BACKUP_DIR/$rel"
+  if [ "$DRY_RUN" = 0 ]; then
+    if ! { mkdir -p "$(dirname "$dest")" && cp -p "$path" "$dest"; }; then
+      log "failed: backup of $path"
+      FAILED=1
+      return 1
+    fi
+  fi
+  log "backed-up: $path -> $dest"
+}
+
+# Merge agents/claude/settings.fragment.json into ~/.claude/settings.json.
+# enforce keys always win (hooks replaced as a whole); seed keys only when absent.
+merge_settings() {
+  local frag="$REPO_ROOT/agents/claude/settings.fragment.json"
+  local target="$HOME/.claude/settings.json" local_json merged tmp mode k
+  if ! have jq; then
+    log "skipped: settings (jq missing)"
+    FAILED=1
+    return 0
+  fi
+  local_json="{}"
+  if [ -e "$target" ]; then
+    if ! jq -e 'type == "object"' "$target" >/dev/null 2>&1; then
+      log "failed: settings (invalid JSON in $target; left untouched)"
+      FAILED=1
+      return 0
+    fi
+    local_json="$(cat "$target")"
+  fi
+  merged="$(jq -n --argjson l "$local_json" --slurpfile f "$frag" '
+    $f[0] as $f
+    | (($l * ($f.enforce | del(.hooks))) | .hooks = $f.enforce.hooks) as $m
+    | reduce ($f.seed | keys[]) as $k ($m; if has($k) then . else .[$k] = $f.seed[$k] end)')" || {
+    log "failed: settings (merge)"
+    FAILED=1
+    return 0
+  }
+  if [ "$(jq -S . <<<"$local_json")" = "$(jq -S . <<<"$merged")" ]; then
+    log "unchanged: $target"
+    return 0
+  fi
+  while IFS= read -r k; do
+    log "changed: settings.$k"
+  done < <(jq -rn --argjson l "$local_json" --argjson m "$merged" --slurpfile f "$frag" \
+    '$f[0].enforce | keys[] | select($l[.] != $m[.])')
+  while IFS= read -r k; do
+    log "seeded: settings.$k"
+  done < <(jq -rn --argjson l "$local_json" --slurpfile f "$frag" \
+    '$f[0].seed | keys[] | . as $k | select($l | has($k) | not)')
+  [ "$DRY_RUN" = 1 ] && { [ -e "$target" ] && copy_to_backup "$target"; return 0; }
+  mode=600
+  if [ -e "$target" ]; then
+    mode="$(stat -c %a "$target")"
+    copy_to_backup "$target" || return 0
+  fi
+  mkdir -p "$(dirname "$target")"
+  tmp="$(mktemp "$target.XXXXXX")"
+  printf '%s\n' "$merged" > "$tmp"
+  chmod "$mode" "$tmp"
+  mv -f "$tmp" "$target"
+}
+
 # Placeholder; replaced by the real implementation in a later task.
 enable_dev() {
   log "skipped: enable-dev (not implemented)"
@@ -154,7 +222,8 @@ main() {
   check_prerequisites
   link_all
   scan_stale
-  # merge_settings (settings step) and register_mcp (MCP step) slot in here.
+  merge_settings
+  # register_mcp (MCP step) slots in here.
   exit "$FAILED"
 }
 
