@@ -293,10 +293,47 @@ register_mcp() {
   done < <(jq -c '.servers[]' "$manifest")
 }
 
-# Placeholder; replaced by the real implementation in a later task.
+# Opt one project into the dev profile: CLAUDE.local.md import + repo-local git exclude. Never commits.
 enable_dev() {
-  log "skipped: enable-dev (not implemented)"
-  FAILED=1
+  local dir="$1" file excl import='@~/.claude/profiles/dev.md'
+  if [ ! -d "$dir" ]; then
+    echo "not a directory: $dir" >&2
+    exit 2
+  fi
+  file="$dir/CLAUDE.local.md"
+  if [ ! -e "$file" ]; then
+    [ "$DRY_RUN" = 1 ] || printf '%s\n' "$import" > "$file" || { log "failed: $file (write)"; FAILED=1; return 0; }
+    log "created: $file"
+  elif grep -qxF "$import" "$file"; then
+    log "unchanged: $file"
+  else
+    if [ "$DRY_RUN" = 0 ]; then
+      { [ ! -s "$file" ] || [ -z "$(tail -c1 "$file")" ] || printf '\n'; printf '%s\n' "$import"; } >> "$file" \
+        || { log "failed: $file (append)"; FAILED=1; return 0; }
+    fi
+    log "appended: $file"
+  fi
+
+  if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    if git -C "$dir" check-ignore -q CLAUDE.local.md; then
+      log "unchanged: ignore (CLAUDE.local.md already ignored)"
+    else
+      excl="$(git -C "$dir" rev-parse --git-path info/exclude)"
+      case "$excl" in /*) ;; *) excl="$dir/$excl" ;; esac
+      if [ "$DRY_RUN" = 0 ]; then
+        { mkdir -p "$(dirname "$excl")" \
+          && { [ ! -s "$excl" ] || [ -z "$(tail -c1 "$excl")" ] || printf '\n' >> "$excl"; } \
+          && printf '%s\n' 'CLAUDE.local.md' >> "$excl"; } \
+          || { log "failed: $excl (write)"; FAILED=1; return 0; }
+      fi
+      log "appended: $excl"
+    fi
+  else
+    log "skipped: ignore (not a git repo)"
+  fi
+
+  [ -e "$HOME/.claude/profiles/dev.md" ] || log "skipped: dev-profile-check (run install.sh first)"
+  echo "First session in this project will ask to approve the external import — accept it."
 }
 
 main() {
