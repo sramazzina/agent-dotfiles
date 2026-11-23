@@ -16,7 +16,10 @@ STUB
   chmod +x "$TEST_HOME/bin/claude"
 }
 
-teardown_home() { [ -n "${TEST_HOME:-}" ] && rm -rf "$TEST_HOME"; return 0; }
+teardown_home() {
+  if [ -n "${TEST_HOME:-}" ]; then chmod -R u+w "$TEST_HOME" 2>/dev/null || true; rm -rf "$TEST_HOME"; fi
+  return 0
+}
 
 run_install() {
   local env_key=(CONTEXT7_API_KEY=dummy)

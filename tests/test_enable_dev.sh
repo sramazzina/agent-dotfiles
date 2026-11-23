@@ -92,3 +92,19 @@ test_enable_dev_no_full_install() {
   assert_contains "$OUT" "skipped: dev-profile-check (run install.sh first)" "profile warn"
   assert_eq "0" "$RC" "warning is not failure"
 }
+
+test_enable_dev_empty_arg_is_usage_error() {
+  setup_home
+  run_install --enable-dev ""
+  assert_eq "2" "$RC" "rc"
+  [ ! -e "$HOME/.claude/CLAUDE.md" ] || fail "full install ran"
+}
+
+test_enable_dev_crlf_import_detected() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  printf '%s\r\n' "$IMPORT" > "$TEST_HOME/proj/CLAUDE.local.md"
+  run_install --enable-dev "$TEST_HOME/proj"
+  assert_contains "$OUT" "unchanged: $TEST_HOME/proj/CLAUDE.local.md" "unchanged"
+  assert_eq "1" "$(tr -d '\r' < "$TEST_HOME/proj/CLAUDE.local.md" | grep -cxF "$IMPORT")" "import lines"
+}

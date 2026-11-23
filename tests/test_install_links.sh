@@ -127,3 +127,14 @@ test_backups_never_collide() {
   assert_eq "one" "$(cat "$HOME/.agent-dotfiles-backups/20000101-000000/.claude/CLAUDE.md")" "first backup"
   assert_eq "two" "$(cat "$HOME/.agent-dotfiles-backups/20000101-000000-1/.claude/CLAUDE.md")" "second backup"
 }
+
+test_link_failure_is_reported_and_run_continues() {
+  setup_home
+  mkdir -p "$HOME/.claude/rules"
+  chmod 555 "$HOME/.claude/rules"
+  run_install
+  chmod 755 "$HOME/.claude/rules"
+  assert_eq 1 "$RC" "exit"
+  assert_contains "$OUT" "failed: link $HOME/.claude/rules/" "failed line"
+  [ -f "$HOME/.claude/settings.json" ] || fail "settings step did not run"
+}

@@ -73,8 +73,11 @@ link_to() {
     backup_path "$target" || return 0
   fi
   if [ "$DRY_RUN" = 0 ]; then
-    mkdir -p "$(dirname "$target")"
-    ln -s "$source" "$target"
+    if ! { mkdir -p "$(dirname "$target")" && ln -s "$source" "$target"; }; then
+      log "failed: link $target"
+      FAILED=1
+      return 0
+    fi
   fi
   log "linked: $target"
 }
@@ -238,6 +241,11 @@ register_mcp() {
     FAILED=1
     return 0
   fi
+  if ! jq -e '.servers | type == "array"' "$manifest" >/dev/null 2>&1; then
+    log "failed: mcp (invalid manifest)"
+    FAILED=1
+    return 0
+  fi
   while IFS= read -r srv; do
     name="$(jq -r .name <<<"$srv")"
     transport="$(jq -r .transport <<<"$srv")"
@@ -304,7 +312,7 @@ enable_dev() {
   if [ ! -e "$file" ]; then
     [ "$DRY_RUN" = 1 ] || printf '%s\n' "$import" > "$file" || { log "failed: $file (write)"; FAILED=1; return 0; }
     log "created: $file"
-  elif grep -qxF "$import" "$file"; then
+  elif tr -d '\r' < "$file" | grep -qxF "$import"; then
     log "unchanged: $file"
   else
     if [ "$DRY_RUN" = 0 ]; then
@@ -341,7 +349,7 @@ main() {
     case "$1" in
       --dry-run) DRY_RUN=1 ;;
       --enable-dev)
-        [ $# -ge 2 ] || { usage >&2; exit 2; }
+        [ $# -ge 2 ] && [ -n "$2" ] || { usage >&2; exit 2; }
         ENABLE_DEV_DIR="$2"; shift ;;
       --help|-h) usage; exit 0 ;;
       *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;

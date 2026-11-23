@@ -21,7 +21,7 @@ State what's done, verified, left. Don't continue from a state you can't describ
 Never report "completed"/"tests pass" if anything was skipped. Surface uncertainty.
 
 # Documentation
-- Agent-consumed docs (agent instruction files, README, CHANGELOG, ADRs, plans, handoffs, runbooks): Markdown, Mermaid diagrams. Human-consumed deliverables (stakeholder/customer docs, reports, guides): HTML with SVG diagrams. Mixed audience → Markdown, HTML export only on request.
+- Agent-consumed docs (agent instruction files, README, CHANGELOG, ADRs, plans, handoffs, runbooks): Markdown, Mermaid diagrams. Human-consumed deliverables (stakeholder/customer docs, reports, guides): HTML with SVG diagrams. Mixed audience → Markdown, HTML export only on request; an HTML export is a generated derivative, not the source of truth.
 - GUI mockups: Draw.io (`.drawio`) files.
 
 # Language and tone

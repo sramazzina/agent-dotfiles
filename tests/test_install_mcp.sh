@@ -93,3 +93,17 @@ STUB
   assert_contains "$OUT" "failed: mcp serena (claude mcp add exit 7)" "failed line"
   assert_not_contains "$OUT" "mcp-added: serena" "no added line"
 }
+
+test_mcp_invalid_manifest_fails() {
+  setup_home
+  local copy="$TEST_HOME/repocopy"
+  mkdir "$copy"
+  (cd "$REPO_ROOT" && tar --exclude=.git -cf - .) | tar -xf - -C "$copy"
+  head -c 20 "$REPO_ROOT/mcp/servers.json" > "$copy/mcp/servers.json"
+  set +e
+  OUT="$(env PATH="$TEST_HOME/bin:$PATH" CONTEXT7_API_KEY=dummy "$copy/install.sh" 2>&1)"
+  RC=$?
+  set -e
+  assert_eq 1 "$RC" "exit"
+  assert_contains "$OUT" "failed: mcp (invalid manifest)" "line"
+}

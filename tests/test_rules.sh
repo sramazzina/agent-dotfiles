@@ -62,3 +62,9 @@ test_dev_profile_check_present() {
   grep -qF '~/.agent-dotfiles/install.sh --enable-dev' agents/claude/CLAUDE.md || fail "install cmd"
   if grep -q -- '--enable-dev' AGENTS.md profiles/dev.md; then fail "--enable-dev leaked"; fi
 }
+
+test_workflow_skills_are_always_obligations() {
+  cd "$REPO_ROOT"
+  grep -qE 'ALWAYS.*superpowers:brainstorming' agents/claude/CLAUDE.md || fail "ALWAYS brainstorming"
+  grep -qE 'ALWAYS.*superpowers:writing-plans' agents/claude/CLAUDE.md || fail "ALWAYS writing-plans"
+}

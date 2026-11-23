@@ -7,9 +7,11 @@ failed=0
 log="$(mktemp)"
 for f in tests/test_*.sh; do
   [ -e "$f" ] || continue
-  for t in $(bash -c "source '$f'; declare -F" | awk '{print $3}' | grep '^test_'); do
+  tests="$(bash -c "source '$f'; declare -F" 2>/dev/null | awk '{print $3}' | grep '^test_' || true)"
+  if [ -z "$tests" ]; then echo "FAIL $f (no test_* functions; failed to source?)"; failed=1; continue; fi
+  for t in $tests; do
     # not in an if-condition: errexit must stay active inside the subshell
-    ( set -euo pipefail; source tests/lib.sh; source "$f"; trap teardown_home EXIT; "$t" ) >"$log" 2>&1
+    ( unset TEST_HOME; set -euo pipefail; source tests/lib.sh; source "$f"; trap teardown_home EXIT; "$t" ) >"$log" 2>&1
     rc=$?
     if [ "$rc" -eq 0 ]; then
       echo "PASS $t"

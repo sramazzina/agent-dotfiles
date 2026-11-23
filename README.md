@@ -61,16 +61,17 @@ Every action prints one line; in `--dry-run` each line is prefixed `DRY-RUN ` an
 
 | Prefix | Meaning |
 |---|---|
-| `linked:` / `unchanged:` | symlink created / already correct |
+| `linked:` / `unchanged:` | symlink created / already correct; `unchanged:` also covers settings and ignore entries |
+| `created:` / `appended:` | `--enable-dev`: `CLAUDE.local.md` created / import (or git exclude entry) appended |
 | `backed-up:` | existing file moved (or, for settings.json, copied) to the backup dir |
 | `changed: settings.<key>` / `seeded: settings.<key>` | enforced key changed / seeded key added |
 | `mcp-added:` / `mcp-ok:` / `drift:` | server registered / matches manifest / differs (left alone) |
 | `missing:` | prerequisite not found |
 | `stale:` | link into this clone whose source is gone (reported, never deleted) |
-| `skipped: <what>` | step not attempted (e.g. `skipped: mcp context7 (env CONTEXT7_API_KEY unset)`) |
-| `failed: <what>` | hard failure |
+| `skipped: <what>` | step not attempted (e.g. `skipped: mcp context7 (env CONTEXT7_API_KEY unset)`); `--enable-dev` may print `skipped: ignore (not a git repo)` and `skipped: dev-profile-check (run install.sh first)` |
+| `failed: <what>` | hard failure (e.g. `failed: link <target>`, `failed: mcp (invalid manifest)`) |
 
-Exit codes: `0` ok; `1` a `failed:` line, a missing `jq`/`claude`, or a skipped MCP/settings step; `2` usage error.
+Exit codes: `0` ok; `1` a `failed:` line, a missing `jq`/`claude`, or a skipped MCP/settings step; `2` usage error (including `--enable-dev` with a missing or empty directory argument).
 
 ### MCP and secrets
 
