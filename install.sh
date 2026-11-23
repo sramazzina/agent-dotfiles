@@ -221,6 +221,78 @@ merge_settings() {
   fi
 }
 
+# Register user-scope MCP servers from mcp/servers.json (read-only compare against ~/.claude.json).
+# Only type/url/command/args and header NAMES are read from the live config; values never are.
+register_mcp() {
+  local manifest="$REPO_ROOT/mcp/servers.json" cfg="$HOME/.claude.json"
+  local tool name transport cur drift var hdr rc srv missing
+  for tool in claude jq; do
+    if ! have "$tool"; then
+      log "skipped: mcp ($tool missing)"
+      FAILED=1
+      return 0
+    fi
+  done
+  if [ -e "$cfg" ] && ! jq -e 'type == "object"' "$cfg" >/dev/null 2>&1; then
+    log "failed: mcp (cannot read $cfg)"
+    FAILED=1
+    return 0
+  fi
+  while IFS= read -r srv; do
+    name="$(jq -r .name <<<"$srv")"
+    transport="$(jq -r .transport <<<"$srv")"
+    cur=""
+    [ -e "$cfg" ] && cur="$(jq -c --arg n "$name" '.mcpServers[$n] // empty | {type, url, command, args, headers: ((.headers // {}) | keys)}' "$cfg")"
+    if [ -n "$cur" ]; then
+      drift="$(jq -rn --argjson s "$srv" --argjson c "$cur" '
+        [ (if ($c.type // "stdio") != $s.transport then "type" else empty end),
+          (if $s.transport == "http" then
+             (if $c.url != $s.url then "url" else empty end),
+             (if ($c.headers | sort) != (($s.headers // {}) | keys | sort) then "headers" else empty end)
+           else
+             (if $c.command != $s.command then "command" else empty end),
+             (if ($c.args // []) != ($s.agents.claude.args // $s.args // []) then "args" else empty end)
+           end) ] | join(",")')"
+      if [ -n "$drift" ]; then
+        log "drift: mcp $name ($drift)"
+      else
+        log "mcp-ok: $name"
+      fi
+      continue
+    fi
+    # Absent: verify every referenced env var is set, then build argv piece by piece (no eval).
+    local -a add=(claude mcp add --scope user)
+    missing=""
+    if [ "$transport" = http ]; then
+      add+=(--transport http "$name" "$(jq -r .url <<<"$srv")")
+      while IFS=$'\t' read -r hdr var; do
+        [ -n "$hdr" ] || continue
+        if [ -z "${!var:-}" ]; then missing="$var"; break; fi
+        add+=(-H "$hdr: ${!var}")
+      done < <(jq -r '(.headers // {}) | to_entries[] | [.key, .value.env] | @tsv' <<<"$srv")
+    else
+      add+=("$name" -- "$(jq -r .command <<<"$srv")")
+      while IFS= read -r var; do add+=("$var"); done \
+        < <(jq -r '(.agents.claude.args // .args // [])[]' <<<"$srv")
+    fi
+    if [ -n "$missing" ]; then
+      log "skipped: mcp $name (env $missing unset)"
+      FAILED=1
+      continue
+    fi
+    if [ "$DRY_RUN" = 0 ]; then
+      rc=0
+      "${add[@]}" >/dev/null 2>&1 || rc=$?
+      if [ "$rc" != 0 ]; then
+        log "failed: mcp $name (claude mcp add exit $rc)"
+        FAILED=1
+        continue
+      fi
+    fi
+    log "mcp-added: $name"
+  done < <(jq -c '.servers[]' "$manifest")
+}
+
 # Placeholder; replaced by the real implementation in a later task.
 enable_dev() {
   log "skipped: enable-dev (not implemented)"
@@ -249,7 +321,7 @@ main() {
   link_all
   scan_stale
   merge_settings
-  # register_mcp (MCP step) slots in here.
+  register_mcp
   exit "$FAILED"
 }
 

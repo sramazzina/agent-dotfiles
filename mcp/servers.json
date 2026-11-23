@@ -1,0 +1,7 @@
+{"servers": [
+  {"name": "context7", "transport": "http", "url": "https://mcp.context7.com/mcp",
+   "headers": {"CONTEXT7_API_KEY": {"env": "CONTEXT7_API_KEY"}}},
+  {"name": "serena", "transport": "stdio", "command": "serena",
+   "args": ["start-mcp-server", "--project-from-cwd"],
+   "agents": {"claude": {"args": ["start-mcp-server", "--context", "claude-code", "--project-from-cwd"]}}}
+]}
