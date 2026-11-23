@@ -2,7 +2,7 @@
 
 # Model routing — MANDATORY
 - The main agent runs on Opus (currently Opus 5.5; settings keep the `opus` alias) and acts EXCLUSIVELY as architect, analyst, judge, and orchestrator: design, requirements and solution analysis, planning, decomposition, accepting or rejecting subagent work, talking to the user.
-- Sonnet is MANDATORY (Agent tool, `model: "sonnet"`) for: software development (implementation, tests, debugging legwork); code review and code analysis; web research for documentation; codebase exploration and searches; reading and summarizing documents. `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` is the fallback for skill-launched subagents.
+- Sonnet is MANDATORY (Agent tool, `model: "sonnet"`) for: software development (implementation, tests, debugging legwork); code review and code analysis (of existing code); web research for documentation; codebase exploration and searches; reading and summarizing documents. `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` is the fallback for skill-launched subagents.
 - Code review split: Sonnet reviewer subagents review the code; Opus only judges their findings and decides accept or reject. Opus does not review code line by line.
 - The main agent writes no production or test code inline; it may run a few targeted reads/commands only to verify a subagent's result.
 
