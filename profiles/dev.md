@@ -7,7 +7,7 @@ Minimum code that solves the problem. Nothing speculative. No features beyond wh
 ## Rule 8 — Read before you write
 Read exports, immediate callers, shared utilities first. "Looks orthogonal" is dangerous. If unsure why code is structured a way, ask.
 ## Rule 9 — Tests verify intent
-Tests encode WHY behavior matters. A test that cannot fail when the business logic changes is wrong.
+Tests encode WHY behavior matters. A test that cannot fail when the business logic changes is wrong. Before writing a test, name the production change (a realistic bug) that would make it fail. Take expected values from the spec or a worked example, never recomputed the way the code does.
 ## Rule 11 — Match the codebase's conventions
 Conformance > taste. Surface conventions you think harmful; don't fork silently.
 ## Rule 13 — No dismissed or unmaintained dependencies

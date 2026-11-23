@@ -72,3 +72,11 @@ test_workflow_skills_are_always_obligations() {
   grep -qE 'ALWAYS.*superpowers:brainstorming' agents/claude/CLAUDE.md || fail "ALWAYS brainstorming"
   grep -qE 'ALWAYS.*superpowers:writing-plans' agents/claude/CLAUDE.md || fail "ALWAYS writing-plans"
 }
+
+test_rule9_is_operational() {
+  cd "$REPO_ROOT"
+  local body
+  body="$(awk '/^## Rule 9/{f=1;next} f&&/^## /{exit} f' profiles/dev.md)"
+  assert_contains "$body" 'production change' "rule 9 names production change"
+  assert_contains "$body" 'Tests encode WHY behavior matters' "rule 9 keeps intent sentence"
+}
