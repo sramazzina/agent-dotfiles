@@ -5,13 +5,17 @@ test_rule_numbers_unique() {
   cd "$REPO_ROOT"
   local got want
   got="$(cat $LAYERS | sed -n 's/^## Rule \([0-9]\+\) .*/\1/p' | sort -n | tr '\n' ' ')"
-  want="$(seq 1 16 | tr '\n' ' ')"
+  # Rule 6 is retired and has no heading; the other numbers never shift (project docs cite them).
+  want="$(seq 1 16 | grep -vx 6 | tr '\n' ' ')"
   assert_eq "$want" "$got" "rule numbers across layers"
 }
 
-test_rule6_reserved() {
+test_rule6_retirement_stated() {
   cd "$REPO_ROOT"
-  grep -qxF '## Rule 6 — (retired; number reserved)' AGENTS.md || fail "Rule 6 heading"
+  local f
+  for f in $LAYERS; do
+    grep -qF 'Rule 6 is retired' "$f" || fail "$f: Rule 6 retirement note"
+  done
 }
 
 test_neutral_files_have_no_claude_terms() {
