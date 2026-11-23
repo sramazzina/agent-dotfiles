@@ -80,3 +80,12 @@ test_rule9_is_operational() {
   assert_contains "$body" 'production change' "rule 9 names production change"
   assert_contains "$body" 'Tests encode WHY behavior matters' "rule 9 keeps intent sentence"
 }
+
+test_rule3_scopes_improvements_to_changed_code() {
+  cd "$REPO_ROOT"
+  local body
+  body="$(awk '/^## Rule 3/{f=1;next} f&&/^## /{exit} f' AGENTS.md)"
+  assert_contains "$body" 'Inside the code you are already changing' "rule 3 allows improving changed code"
+  assert_contains "$body" 'Report other improvements' "rule 3 reports other improvements"
+  assert_contains "$body" 'Match existing style' "rule 3 keeps style sentence"
+}
