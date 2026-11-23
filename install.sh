@@ -153,6 +153,15 @@ merge_settings() {
     FAILED=1
     return 0
   fi
+  # Write through a symlinked settings.json so the user's link survives.
+  if [ -L "$target" ]; then
+    if [ ! -e "$target" ]; then
+      log "failed: settings (dangling symlink $target)"
+      FAILED=1
+      return 0
+    fi
+    target="$(readlink -f "$target")"
+  fi
   local_json="{}"
   if [ -e "$target" ]; then
     if ! jq -e 'type == "object"' "$target" >/dev/null 2>&1; then
@@ -188,11 +197,28 @@ merge_settings() {
     mode="$(stat -c %a "$target")"
     copy_to_backup "$target" || return 0
   fi
-  mkdir -p "$(dirname "$target")"
-  tmp="$(mktemp "$target.XXXXXX")"
-  printf '%s\n' "$merged" > "$tmp"
-  chmod "$mode" "$tmp"
-  mv -f "$tmp" "$target"
+  if ! mkdir -p "$(dirname "$target")"; then
+    log "failed: settings (mkdir)"
+    FAILED=1
+    return 0
+  fi
+  if ! tmp="$(mktemp "$target.XXXXXX")"; then
+    log "failed: settings (mktemp)"
+    FAILED=1
+    return 0
+  fi
+  if ! { printf '%s\n' "$merged" > "$tmp" && chmod "$mode" "$tmp"; }; then
+    rm -f "$tmp"
+    log "failed: settings (write)"
+    FAILED=1
+    return 0
+  fi
+  if ! mv -f "$tmp" "$target"; then
+    rm -f "$tmp"
+    log "failed: settings (mv)"
+    FAILED=1
+    return 0
+  fi
 }
 
 # Placeholder; replaced by the real implementation in a later task.

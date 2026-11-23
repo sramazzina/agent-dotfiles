@@ -60,7 +60,7 @@ test_settings_invalid_json() {
   run_install
   assert_eq "1" "$RC" "exit code"
   assert_eq "{not json" "$(cat "$HOME/.claude/settings.json")" "file untouched"
-  [ ! -e "$HOME/.agent-dotfiles-backups/$(ls "$HOME/.agent-dotfiles-backups" 2>/dev/null | head -1)/.claude/settings.json" ] || fail "unexpected backup"
+  [ -z "$(find "$HOME/.agent-dotfiles-backups" -name settings.json 2>/dev/null)" ] || fail "unexpected settings backup"
 }
 
 test_settings_backup_on_change() {
@@ -101,4 +101,28 @@ test_settings_jq_missing() {
   assert_eq "1" "$RC" "exit code"
   assert_contains "$OUT" "skipped: settings (jq missing)" "skipped"
   assert_symlink_to "$HOME/.claude/CLAUDE.md" "$REPO_ROOT/agents/claude/CLAUDE.md"
+}
+
+test_settings_symlink_written_through() {
+  setup_home
+  mkdir -p "$HOME/.claude" "$HOME/real"
+  echo '{"model":"sonnet"}' > "$HOME/real/settings.json"
+  chmod 600 "$HOME/real/settings.json"
+  ln -s "$HOME/real/settings.json" "$HOME/.claude/settings.json"
+  run_install
+  assert_symlink_to "$HOME/.claude/settings.json" "$HOME/real/settings.json"
+  assert_file_mode "$HOME/real/settings.json" 600
+  assert_eq "true" "$(jq '.model == "sonnet" and .permissions.defaultMode == "auto"' "$HOME/real/settings.json")" "target updated"
+  assert_eq '{"model":"sonnet"}' "$(cat "$(find "$HOME/.agent-dotfiles-backups" -name settings.json)")" "backup of resolved content"
+}
+
+test_settings_dangling_symlink() {
+  setup_home
+  mkdir -p "$HOME/.claude"
+  ln -s "$HOME/nowhere.json" "$HOME/.claude/settings.json"
+  run_install
+  assert_eq "1" "$RC" "exit code"
+  assert_contains "$OUT" "failed: settings (dangling symlink" "failed line"
+  assert_symlink_to "$HOME/.claude/settings.json" "$HOME/nowhere.json"
+  [ ! -e "$HOME/nowhere.json" ] || fail "target created"
 }
