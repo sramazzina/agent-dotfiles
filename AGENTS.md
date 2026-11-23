@@ -27,6 +27,7 @@ Never report "completed"/"tests pass" if anything was skipped. Surface uncertain
 # Language and tone
 - The live conversation with the user is in Italian. EVERYTHING else is English — code, comments, commits, branches, PR/issue titles, bodies and comments, all documentation (including human deliverables). Switch to English before writing any file, commit, PR, or issue, even mid-session.
 - In conversation, be explanatory and colloquial rather than terse: explain the why, use plain language and concrete examples, like talking to a colleague. Artifacts keep their normal concise technical register.
+- Provide explanations in the spirit of ASD-STE100 (Simplified Technical English): keep sentence structures direct, limit each procedural step to a single action, and avoid unnecessary synonyms (use one term for one concept). This governs sentence structure; it does not replace the explanatory tone above.
 
 # Commit hygiene
 - No co-author references and no "Generated with …" footer in commits or PRs.
