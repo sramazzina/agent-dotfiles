@@ -1,4 +1,4 @@
-# Handoff — agent-dotfiles (updated 2026-11-23, after PR #10 merge)
+# Handoff — agent-dotfiles (updated 2026-11-23, after PR #12 merge)
 
 Read this section first, then continue with the user in Italian (global Language Rules). The original bootstrap handoff is kept below as history; its open questions are all resolved.
 
@@ -9,6 +9,8 @@ Read this section first, then continue with the user in Italian (global Language
 - Authoritative docs: `README.md` (usage, summary-line prefixes, exit codes), `docs/superpowers/specs/2026-11-23-agent-dotfiles-design.md` (design), `docs/superpowers/plans/2026-11-23-agent-dotfiles-core.md` (executed plan), `docs/verification.md` (verified Claude Code behaviour: `@~` imports, user rules via symlink incl. on file creation, skills via symlink).
 - `drafts/global-CLAUDE.md.proposed` is superseded by the layer files; it can be deleted.
 - GitHub labels: `type:*`, `area:*`, `priority:P0`–`P3` (default labels removed).
+- PR #12 (squash-merged, `main` = `1878e4a`; closed #11, #13): `AGENTS.md` gained an ASD-STE100 (Simplified Technical English) style bullet under "Language and tone"; the `## Rule 6 — (retired; number reserved)` heading was removed WITHOUT renumbering (user decision: project docs, e.g. ~20 files in cardine, cite rules by number). Layer headers still say "Rule 6 is retired"; `tests/test_rules.sh` expects 1–16 without 6. The Documentation section is now two bullets (agent-consumed / human-consumed).
+- Discussed, no action yet: (a) the Claude model-routing text in the universal layer uses dev wording ("production or test code") — candidate to neutralise and move the dev part to `agents/claude/dev.md`; (b) the dev profile is all-or-nothing (assumes GitHub issues/PRs/Actions) — split into a core + "GitHub workflow" module only if a non-GitHub dev project appears.
 
 ## Rulings made during execution (user informed, not yet explicitly confirmed)
 1. `failed: <what>` summary prefix for hard failures (exit 1), distinct from `skipped:` (step not attempted).
@@ -17,8 +19,8 @@ Read this section first, then continue with the user in Italian (global Language
 ## Known minor gaps (accepted as-is)
 pi NOTES lacks config details; write-failure branches of `install.sh` untested; `ccstatusline@latest` unpinned in the settings fragment; `CONTEXT7_API_KEY` briefly visible in argv during the first `claude mcp add` (CLI limitation, documented).
 
-## Next step: cutover on this machine (not started)
-The live `~/.claude` is still the pre-project configuration. Do it together with the user:
+## Next step: cutover on this machine (not started) — tracked in issue #14
+The live `~/.claude` is still the pre-project configuration. Issue #14 tracks the migration of all servers (procedure, per-server checklist; the server list must be confirmed with the user). Do it together with the user:
 1. `cd /home/sramazzina/work/serasoft/agent-dotfiles && ./install.sh --dry-run`; review every line with the user.
 2. `export CONTEXT7_API_KEY=...` only if context7 is not already registered (on this machine it is: expect `mcp-ok`). `./install.sh`. Expected: `~/.claude/CLAUDE.md` backed up to `~/.agent-dotfiles-backups/<ts>/` and linked; settings unchanged (mode 600, `autoMode` kept); `mcp-ok` for both servers; a second run is all `unchanged:`/`mcp-ok:`.
 3. Start a fresh Claude session and check `/memory` (universal layer imported via `~/.agent-dotfiles/AGENTS.md`).
