@@ -11,7 +11,9 @@
 |-------|-----------|---------------|
 | read control (`notes.txt`) | symlink | no |
 | read match (`Foo.java`) | symlink | yes |
-| create match (new `Bar.java`) | symlink | yes |
+| create match (new `Bar.java`), first run in a dir already holding `Foo.java` (confounded: no tool trace) | symlink | yes |
+| create match, re-run in a fresh dir with only `notes.txt`, stream-json tool trace, run 1 | symlink | yes (only tool call: `Write`) |
+| create match, same re-run, run 2 | symlink | yes (only tool call: `Write`) |
 
 Step 3 (retry with a real copy) was not needed: the read-match probe passed through the symlink.
 
@@ -19,7 +21,9 @@ RULES_LINK_MODE=symlink
 
 ### Creation trigger (input for issue #2)
 
-Creating a new file matching the `paths` glob did trigger the rule (token present in the reply after the create). Plan B (per-language profiles loaded at session start via `--enable-dev --lang`) is therefore not required for the create case. Caveat: single run, haiku model.
+The first create probe was confounded (the dir already contained `Foo.java`, no tool trace). It was re-run twice in a fresh dir containing only `notes.txt`, with `--output-format stream-json --verbose`. In both runs the only tool call was `Write` of `Bar.java` (no Read/Glob/Bash of any .java file), and the reply ended with `SPIKE-RULE-7f3a`. Conclusion: creating a new file matching the `paths` glob triggers the rule, so Plan B is not required for the create case.
+
+Caveats: haiku model only, and only a small number of runs (read-match: 1 run; create: 2 clean runs plus the confounded one).
 
 ## Verify at cutover
 
