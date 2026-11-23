@@ -2,10 +2,118 @@
 
 Personal, versioned configuration for coding agents: behavioral rules, skills and MCP server definitions. Cloned on every Linux server where agents run and wired into each agent's home configuration by `install.sh`.
 
-Today only Claude Code is wired; the layout is agent-neutral so opencode, pi or goose can be added later.
-
-Status: design approved, implementation not started.
+Only Claude Code is wired today. The content is organised agent-neutrally so opencode, pi or goose can be added later (see `agents/*/NOTES.md`).
 
 - Design: [`docs/superpowers/specs/2026-11-23-agent-dotfiles-design.md`](docs/superpowers/specs/2026-11-23-agent-dotfiles-design.md)
 - Bootstrap handoff: [`HANDOFF-2026-11-23-bootstrap.md`](HANDOFF-2026-11-23-bootstrap.md)
-- Migration of existing projects: deferred, see issue #1.
+- Verification results: [`docs/verification.md`](docs/verification.md)
+
+## Rule layers
+
+Rule numbers are global across all layer files, never renumbered; Rule 6 is retired.
+
+| | Neutral | Claude-only |
+|---|---|---|
+| **Universal** (always on): `AGENTS.md`, `agents/claude/CLAUDE.md` | Rules 1, 3, 4, 5, 7, 10, 12; language and tone; documentation format; commit hygiene | Model routing; workflow skills (brainstorming, writing-plans) |
+| **Development** (per-project opt-in): `profiles/dev.md`, `agents/claude/dev.md` | Rules 2, 8, 9, 11, 13, 14, 16; sprints, issues, tests; git and PR rules | Rule 15; subagent-driven plan execution; tools section (context7, Serena); Bash chaining rule |
+| **Language**: `rules/*.md` | Rule content | `paths:` auto-activation |
+
+## Repo layout
+
+```
+AGENTS.md              neutral universal rules
+profiles/dev.md        neutral development rules
+rules/java.md          language rules (path-scoped for Claude)
+skills/                skills (serena-query-project)
+mcp/servers.json       neutral MCP manifest (secrets referenced by env-var name only)
+agents/claude/         Claude entry files + settings.fragment.json
+agents/{opencode,pi,goose}/NOTES.md   notes for future adapters
+install.sh             Claude Code installer
+tests/                 installer tests
+docs/                  spec, plan, verification
+```
+
+## Prerequisites
+
+`install.sh` never installs anything. Required: `jq` and `claude` (without them the settings and MCP steps are skipped and the run exits 1). Also checked and reported when missing: `git`, `gh`, `serena`, `serena-hooks`, `uvx`, `node`, `npx`. `claude` and `gh` should be logged in.
+
+## Install
+
+```bash
+git clone git@github.com:sramazzina/agent-dotfiles.git ~/.agent-dotfiles   # private repo; any location works
+cd ~/.agent-dotfiles
+export CONTEXT7_API_KEY=...        # needed only for the first context7 registration on a server
+./install.sh --dry-run             # review
+./install.sh
+```
+
+The installer is idempotent: re-running with nothing to change prints `unchanged:` lines and creates no backup. What it does:
+
+- Creates the anchor `~/.agent-dotfiles` (symlink to the clone; if the clone is already there it is left as-is). All imports use this anchor.
+- Symlinks `~/.claude/CLAUDE.md`, `~/.claude/profiles/dev.md`, each `rules/*.md` into `~/.claude/rules/`, and each skill into `~/.claude/skills/`. `~/.claude/skills/synced` is never touched.
+- Merges `agents/claude/settings.fragment.json` into `~/.claude/settings.json` (a real, local file; a symlinked one is written through to its target). Enforced keys always win (`hooks` is replaced as a whole); seeded keys (`model`, `effortLevel`) are written only when absent. `autoMode` and any other local key are preserved.
+- Registers the MCP servers in `mcp/servers.json` at user scope via `claude mcp add`. An existing server with a different definition is reported as drift and never overwritten.
+- Backs up anything it replaces to `~/.agent-dotfiles-backups/<YYYYmmdd-HHMMSS>[-N]/` (path preserved relative to `$HOME`). The directory is created only when something is backed up.
+
+### Summary lines and exit codes
+
+Every action prints one line; in `--dry-run` each line is prefixed `DRY-RUN ` and nothing is changed.
+
+| Prefix | Meaning |
+|---|---|
+| `linked:` / `unchanged:` | symlink created / already correct |
+| `backed-up:` | existing file moved (or, for settings.json, copied) to the backup dir |
+| `changed: settings.<key>` / `seeded: settings.<key>` | enforced key changed / seeded key added |
+| `mcp-added:` / `mcp-ok:` / `drift:` | server registered / matches manifest / differs (left alone) |
+| `missing:` | prerequisite not found |
+| `stale:` | link into this clone whose source is gone (reported, never deleted) |
+| `skipped: <what>` | step not attempted (e.g. `skipped: mcp context7 (env CONTEXT7_API_KEY unset)`) |
+| `failed: <what>` | hard failure |
+
+Exit codes: `0` ok; `1` a `failed:` line, a missing `jq`/`claude`, or a skipped MCP/settings step; `2` usage error.
+
+### MCP and secrets
+
+`CONTEXT7_API_KEY` must be exported for the first registration on a server; the manifest references it by name only. Caveat: the value is passed to `claude mcp add -H` on the command line, so it is briefly visible in the process list (a CLI limitation); the installer never prints it. Servers already registered are only compared, never rewritten, so later runs do not need the variable.
+
+## Enable the dev profile in a project
+
+The universal rules apply everywhere automatically. The development layer is opt-in per project:
+
+```bash
+~/.agent-dotfiles/install.sh --enable-dev /path/to/project    # --dry-run supported
+```
+
+This adds the line `@~/.claude/profiles/dev.md` to `<project>/CLAUDE.local.md` (created if absent, no-op if present) and, in a git repo, adds `CLAUDE.local.md` to the repo-local `.git/info/exclude` (not `.gitignore`, so no tracked file changes; skipped if already ignored). It never commits. The first Claude session in the project shows a one-time external-import approval dialog: accept it (declining disables the import permanently for that project).
+
+### New project on an installed server
+
+Universal rules apply with no action. Run `~/.agent-dotfiles/install.sh --enable-dev .` once in the project. If Claude detects a software project without the dev profile loaded, it says so at session start and offers to run that command (never for non-development work).
+
+## Language rules
+
+`rules/<lang>.md` carry `paths:` frontmatter and are symlinked into `~/.claude/rules/` (`RULES_LINK_MODE=symlink`, verified in `docs/verification.md`). A rule loads on the first read or write of a matching file, including creating a new one, not at session start. Known limitation: guidance is absent until that first touch; if that proves insufficient, Plan B (per-language import at session start) is tracked in issue #2.
+
+## Project convention for shared repos
+
+`AGENTS.md` is the main project file; `CLAUDE.md` contains just `@AGENTS.md`. The personal dev profile goes in the git-excluded `CLAUDE.local.md` (via `--enable-dev`), never in shared files.
+
+## Editing rules
+
+Edit the files in this repo and commit. Symlinks mean changes are live without re-running `install.sh`. Re-run it only after adding new rule or skill files (new links) or changing `settings.fragment.json` or `mcp/servers.json`. Copy mode for rules is not implemented.
+
+## Never versioned
+
+`~/.claude.json` (MCP registrations live there; secrets included), `~/.claude/settings.json` (local file with local keys such as `autoMode`), `CLAUDE.local.md` files, API keys, and `~/.agent-dotfiles-backups/`.
+
+## Migration of existing projects
+
+Cleaning up per-project instruction files that duplicate these rules is not part of the install: see issue #1.
+
+## Tests
+
+```bash
+bash tests/run.sh
+```
+
+Runs the installer against a temporary `HOME` with a stub `claude`; no real configuration is touched.
