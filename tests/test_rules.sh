@@ -89,3 +89,14 @@ test_rule3_scopes_improvements_to_changed_code() {
   assert_contains "$body" 'Report other improvements' "rule 3 reports other improvements"
   assert_contains "$body" 'Match existing style' "rule 3 keeps style sentence"
 }
+
+test_model_routing_single_section() {
+  cd "$REPO_ROOT"
+  assert_eq "1" "$(grep -c '^# Model routing' agents/claude/CLAUDE.md)" "one model routing heading"
+  local body
+  body="$(awk '/^# Model routing/{f=1;next} f&&/^# /{exit} f' agents/claude/CLAUDE.md)"
+  assert_contains "$body" 'Opus 5.5' "names current Opus"
+  assert_contains "$body" 'code review' "code review delegated"
+  assert_contains "$body" 'web research' "web research delegated"
+  assert_contains "$body" 'judges their findings' "Opus judges findings"
+}
