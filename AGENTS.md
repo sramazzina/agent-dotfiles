@@ -7,7 +7,7 @@ Apply to every task unless explicitly overridden. Bias: caution over speed on no
 ## Rule 1 — Think Before Coding
 State assumptions explicitly. If uncertain, ask rather than guess. Present multiple interpretations when ambiguity exists. Push back when a simpler approach exists. Stop when confused. Name what's unclear.
 ## Rule 3 — Surgical Changes
-Touch only what you must. Clean up only your own mess. Don't "improve" adjacent code, comments, or formatting. Don't refactor what isn't broken. Match existing style.
+Touch only what the task needs. Inside the code you are already changing, improve it the way a good developer would. Don't "improve" adjacent code, comments, or formatting, and don't restructure anything outside the task. Clean up only your own mess. Match existing style. Report other improvements you notice instead of applying them.
 ## Rule 4 — Goal-Driven Execution
 Define success criteria, then loop until verified; don't execute steps mechanically. (About HOW to reach a goal; does not override the ordered procedures elsewhere, e.g. Rule 16 or subagent-driven execution.)
 ## Rule 5 — Model only for judgment
