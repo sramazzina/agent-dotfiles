@@ -201,7 +201,6 @@ test_push_feature_free() {
     '/usr/bin/git push' \
     'FOO=1 git push' \
     'timeout 30 git push' \
-    'cd x && git push' \
     'nice -n 5 git push' \
     'env FOO=1 git push' \
     "bash -lc 'git push'" \
@@ -307,4 +306,42 @@ test_push_oversized_by_mode() {
   assert_eq none "$(guard_decision_in /tmp auto "$cmd")" "oversized push, auto"
   assert_eq ask "$(guard_decision_in /tmp default "$cmd")" "oversized push, default"
   assert_eq ask "$(guard_decision_in /tmp auto "echo $pad && git push -f origin main")" "oversized force main, auto"
+}
+
+test_push_follows_cd() {
+  make_repo feat/x; local feat=$REPO
+  make_repo main; local mainr=$REPO
+  # cwd is the feature repo; the shell moves into the main repo first
+  assert_push "$feat" none ask "cd $mainr && git push"
+  assert_push "$feat" none ask "pushd $mainr && git push"
+  assert_push "$feat" none ask "(cd $mainr && git push)"
+  assert_push "$feat" none ask "cd $mainr; git push"
+  assert_push "$feat" none ask 'cd x && git push'
+  assert_push "$feat" none ask 'cd "$X" && git push'
+  assert_push "$feat" none ask 'cd && git push'
+  assert_push "$feat" none ask 'cd - && git push'
+  assert_push "$feat" none ask "cd $mainr && popd && git push"
+  assert_push "$feat" none ask "bash -c 'cd $mainr && git push'"
+  # cwd is the main repo; moving into the feature repo makes the push free
+  assert_push "$mainr" none none "cd $feat && git push"
+  assert_push "$mainr" none none "cd $feat && git -C . push"
+  # a cd that does not apply to the push must not leak
+  assert_push "$mainr" none ask "(cd $feat); git push"
+  assert_push "$mainr" none ask "cd $feat | cat; git push"
+  assert_push "$mainr" none ask "cd $feat & git push"
+  assert_push "$mainr" none ask "bash -c 'cd $feat'; git push"
+  # relative cd and -C after cd resolve against the tracked directory
+  assert_push /nonexistent none none "cd $(dirname "$feat") && cd work && git push"
+  assert_push /nonexistent none ask "cd $(dirname "$mainr") && git -C work push"
+}
+
+test_push_cd_docs_only_uses_target_repo() {
+  make_repo main; local docs=$REPO
+  commit_file CHANGELOG.md
+  make_repo main; local code=$REPO
+  commit_file src/App.java
+  # the docs-only range of the cwd repo must not excuse the target repo
+  assert_push "$docs" none none 'git push origin main'
+  assert_push "$docs" none ask "cd $code && git push origin main"
+  assert_push "$code" none none "cd $docs && git push origin main"
 }

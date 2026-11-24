@@ -16,6 +16,7 @@ MAX_PARSE_BYTES=8192
 DECISION=none
 REASON=""
 CWD=""
+DIR=""   # directory the shell is in at this point of the command; empty = unknown
 PERMISSION_MODE=""
 
 # hit <ask|deny> <reason>: record a match; deny beats ask, first reason wins per level.
@@ -95,7 +96,7 @@ git_push() {
       main|master) if [ "$force" = 1 ] || [ "$isdel" = 1 ]; then deny "force push or deletion of main/master"; return; fi ;;
       ''|*[\$\*\?\[\`]*) prot=1 ;;  # empty or unresolvable (variable, glob)
     esac
-    [ "$dest" = HEAD ] || [ "$src" = HEAD ] && need_cur=1
+    case $dest$src in *HEAD*|*@*) need_cur=1 ;; esac
     dsts+=("$dest"); srcs+=("$src")
   done
   [ "${#refs[@]}" -eq 0 ] && need_cur=1
@@ -128,8 +129,8 @@ git_push() {
 
   for ((k = 0; k < ${#dsts[@]}; k++)); do
     dest=${dsts[k]}; src=${srcs[k]}
-    [ "$dest" = HEAD ] && dest=$cur
-    [ "$src" = HEAD ] && src=$cur
+    case $dest in HEAD|@) dest=$cur ;; esac
+    case $src in HEAD|@) src=$cur ;; esac
     case $dest in
       main|master)
         if [ "$force" = 1 ]; then deny "force push to main/master"; return; fi
@@ -153,6 +154,32 @@ gh_api() {
         ask "gh api (mutating)"; return ;;
     esac
   done
+}
+
+# track_cd <cd|pushd|popd> <args...>: update DIR. Anything that is not a plain
+# literal path (variable, glob, "-", no argument, popd) makes DIR unknown, so a
+# later push is protected.
+track_cd() {
+  local cmd=$1 x t=""; shift
+  if [ "$cmd" = popd ]; then DIR=""; return; fi
+  for x in "$@"; do
+    case $x in
+      --) ;;
+      -L|-P|-e|-@) ;;
+      *) t=$x; break ;;
+    esac
+  done
+  case $t in
+    ''|-*|*[\$\`\*\?\[\{\\]*) DIR=""; return ;;
+    '~') t=${HOME:-} ;;
+    '~/'*) t=${HOME:-}/${t#'~/'} ;;
+    '~'*) DIR=""; return ;;
+  esac
+  [ -n "$t" ] || { DIR=""; return; }
+  case $t in
+    /*) DIR=$t ;;
+    *) if [ -n "$DIR" ]; then DIR=$DIR/$t; fi ;;
+  esac
 }
 
 # classify <depth> <words...>: one simple command.
@@ -190,22 +217,25 @@ classify() {
   local j=0 n=${#a[@]} g1 g2 x
 
   case $prog in
+    cd|pushd|popd) track_cd "$prog" "${a[@]}" ;;
     bash|sh|dash|zsh)
       for ((j = 0; j < n; j++)); do
         case ${a[j]} in
           -*c*) [[ ${a[j]} =~ ^-[a-zA-Z]*c[a-zA-Z]*$ ]] || continue
-                if [ "$depth" -lt 4 ] && [ $((j + 1)) -lt "$n" ]; then scan "${a[j+1]}" $((depth + 1)); fi
+                if [ "$depth" -lt 4 ] && [ $((j + 1)) -lt "$n" ]; then
+                  local saved=$DIR; scan "${a[j+1]}" $((depth + 1)); DIR=$saved
+                fi
                 return 0 ;;
           -*) ;;
           *) return 0 ;;
         esac
       done ;;
     git)
-      local gdir=$CWD
+      local gdir=$DIR
       while [ "$j" -lt "$n" ]; do
         case ${a[j]} in
           -C) x=${a[j+1]:-}
-              case $x in /*) gdir=$x ;; *) gdir=${gdir:-.}/$x ;; esac
+              case $x in /*) gdir=$x ;; *) [ -n "$gdir" ] && gdir=$gdir/$x ;; esac
               j=$((j + 2)) ;;
           --git-dir|--work-tree) gdir=""; j=$((j + 2)) ;;
           --git-dir=*|--work-tree=*) gdir=""; j=$((j + 1)) ;;
@@ -214,7 +244,6 @@ classify() {
           *) break ;;
         esac
       done
-      # no cwd in the input: fall back to the hook's own directory
       [ "${a[j]:-}" = push ] && git_push "$gdir" "${a[@]:j+1}" ;;
     gh)
       while [ "$j" -lt "$n" ]; do
@@ -252,10 +281,14 @@ scan() {
   local s=$1 depth=$2
   local -a words=() hd=()
   local cur="" have=0 q="" c nx i=0 n=${#s} line d strip
-  local hd_strip=()
+  local hd_strip=() dstack=() before_seg=$DIR bt=0
 
   flush_word() { if [ "$have" = 1 ]; then words+=("$cur"); fi; cur=""; have=0; }
-  flush_seg() { flush_word; if [ "${#words[@]}" -gt 0 ]; then classify "$depth" "${words[@]}"; fi; words=(); }
+  flush_seg() {
+    flush_word
+    if [ "${#words[@]}" -gt 0 ]; then before_seg=$DIR; classify "$depth" "${words[@]}"; fi
+    words=()
+  }
 
   while [ "$i" -lt "$n" ]; do
     c=${s:i:1}
@@ -277,10 +310,21 @@ scan() {
         '#') if [ "$have" = 0 ]; then
                while [ $((i + 1)) -lt "$n" ] && [ "${s:i+1:1}" != $'\n' ]; do i=$((i + 1)); done
              else cur+=$c; fi ;;
-        ';'|'|'|'('|')'|'`') flush_seg ;;
+        ';') flush_seg ;;
+        '|') flush_seg; DIR=$before_seg ;;  # pipeline stages run in subshells
+        '(') flush_seg; dstack+=("$DIR") ;;
+        ')') flush_seg
+             if [ "${#dstack[@]}" -gt 0 ]; then DIR=${dstack[${#dstack[@]}-1]}; unset 'dstack[${#dstack[@]}-1]'; fi ;;
+        '`') flush_seg
+             if [ "$bt" = 0 ]; then dstack+=("$DIR"); bt=1
+             else bt=0; if [ "${#dstack[@]}" -gt 0 ]; then DIR=${dstack[${#dstack[@]}-1]}; unset 'dstack[${#dstack[@]}-1]'; fi; fi ;;
         '&') # keep redirections like 2>&1, >&2 and &> inside the word
              if [ "${cur: -1}" = '>' ] || [ "${cur: -1}" = '<' ] || [ "$nx" = '>' ]; then cur+=$c; have=1
-             else flush_seg; fi ;;
+             else
+               flush_seg
+               # a lone & backgrounds the previous command in a subshell
+               if [ "$nx" != '&' ] && [ "${s:i-1:1}" != '&' ]; then DIR=$before_seg; fi
+             fi ;;
         '<') if [ "${s:i:3}" = '<<<' ]; then
                i=$((i + 2)) # herestring: plain redirect, no body
              elif [ "$nx" = '<' ]; then
@@ -334,6 +378,7 @@ main() {
   CWD=$(jq -r '.cwd // empty | strings' <<<"$input" 2>/dev/null) || CWD=""
   PERMISSION_MODE=$(jq -r '.permission_mode // empty | strings' <<<"$input" 2>/dev/null) || PERMISSION_MODE=""
   [ -n "$CWD" ] || CWD=.
+  DIR=$CWD
   if [ "${#cmd}" -gt "$MAX_PARSE_BYTES" ]; then
     local sp='[[:space:]]'
     if [[ $cmd =~ (^|[^[:alnum:]_])git$sp.*push ]]; then
