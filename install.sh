@@ -176,7 +176,9 @@ merge_settings() {
   fi
   merged="$(jq -n --argjson l "$local_json" --slurpfile f "$frag" '
     $f[0] as $f
-    | (($l * ($f.enforce | del(.hooks))) | .hooks = $f.enforce.hooks) as $m
+    | (($l * ($f.enforce | del(.hooks))) | .hooks = $f.enforce.hooks) as $m0
+    | (reduce (["allow","ask","deny"][] | select($f.enforce.permissions[.] != null)) as $p ($m0;
+        .permissions[$p] = (($l.permissions[$p] // []) + ($f.enforce.permissions[$p] - ($l.permissions[$p] // []))))) as $m
     | reduce ($f.seed | keys[]) as $k ($m; if has($k) then . else .[$k] = $f.seed[$k] end)')" || {
     log "failed: settings (merge)"
     FAILED=1

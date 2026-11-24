@@ -4,7 +4,27 @@
       "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
     },
     "permissions": {
-      "defaultMode": "auto"
+      "defaultMode": "auto",
+      "deny": [
+        "Bash(gh repo delete *)"
+      ],
+      "ask": [
+        "Bash(git push *)",
+        "Bash(gh pr merge *)",
+        "Bash(gh release create *)",
+        "Bash(gh release edit *)",
+        "Bash(gh release delete *)",
+        "Bash(gh release upload *)",
+        "Bash(mvn deploy *)",
+        "Bash(./mvnw deploy *)",
+        "Bash(docker push *)",
+        "Bash(gh workflow run *)",
+        "Bash(gh secret set *)",
+        "Bash(gh secret delete *)",
+        "Bash(gh secret remove *)",
+        "Bash(gh variable set *)",
+        "Bash(gh variable delete *)"
+      ]
     },
     "hooks": {
       "PreToolUse": [
