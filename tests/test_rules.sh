@@ -99,4 +99,5 @@ test_model_routing_single_section() {
   assert_contains "$body" 'code review' "code review delegated"
   assert_contains "$body" 'web research' "web research delegated"
   assert_contains "$body" 'judges their findings' "Opus judges findings"
+  assert_contains "$body" 'ask the user first' "escalation asks the user"
 }

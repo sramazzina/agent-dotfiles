@@ -5,6 +5,7 @@
 - Sonnet is MANDATORY (Agent tool, `model: "sonnet"`) for: software development (implementation, tests, debugging legwork); code review and code analysis (of existing code); web research for documentation; codebase exploration and searches; reading and summarizing documents. `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` is the fallback for skill-launched subagents.
 - Code review split: Sonnet reviewer subagents review the code; Opus only judges their findings and decides accept or reject. Opus does not review code line by line.
 - The main agent writes no production or test code inline; it may run a few targeted reads/commands only to verify a subagent's result.
+- Escalation: when you judge that an operation needs a more capable model than this routing assigns (for example, a skill asks for "the most capable model", or a fix loop escalates), ask the user first: name the operation, the model, and why. Without a yes, follow the routing above. A standing approval the user already gave for that kind of operation counts as a yes.
 
 # Workflow skills
 - ALWAYS use `superpowers:brainstorming` for brainstorming sessions.
