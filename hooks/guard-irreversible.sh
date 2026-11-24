@@ -91,10 +91,10 @@ git_push() {
       *) src=$a; dest=$a ;;
     esac
     [ "$isdel" = 1 ] && src=""
-    dest=${dest#refs/heads/}
+    case $dest in refs/heads/*) dest=${dest#refs/heads/} ;; heads/*) dest=${dest#heads/} ;; esac
     case $dest in
       main|master) if [ "$force" = 1 ] || [ "$isdel" = 1 ]; then deny "force push or deletion of main/master"; return; fi ;;
-      ''|*[\$\*\?\[\`]*) prot=1 ;;  # empty or unresolvable (variable, glob)
+      ''|refs/*|*[\$\*\?\[\`\{\}\^~]*) prot=1 ;;  # empty, non-branch ref, or unresolvable (variable, glob, xargs placeholder)
     esac
     case $dest$src in *HEAD*|*@*) need_cur=1 ;; esac
     dsts+=("$dest"); srcs+=("$src")
@@ -110,17 +110,21 @@ git_push() {
   if [ -z "$remote" ]; then
     if [ -n "$cur" ]; then
       remote=$(git -C "$dir" config "branch.$cur.pushRemote" 2>/dev/null) ||
-        remote=$(git -C "$dir" config "branch.$cur.remote" 2>/dev/null) ||
-        remote=$(git -C "$dir" config remote.pushDefault 2>/dev/null) || remote=""
+        remote=$(git -C "$dir" config remote.pushDefault 2>/dev/null) ||
+        remote=$(git -C "$dir" config "branch.$cur.remote" 2>/dev/null) || remote=""
     fi
     [ -n "$remote" ] || remote=origin
   fi
   if [ "${#refs[@]}" -eq 0 ]; then
     dest=$cur
+    # Config that changes what a bare push sends makes it unpredictable.
+    [ -z "$dir" ] || ! git -C "$dir" config --get-all "remote.$remote.push" >/dev/null 2>&1 || prot=1
     case $(git -C "${dir:-.}" config push.default 2>/dev/null) in
+      ''|simple|current) ;;
       upstream|tracking) # pushes to the tracking branch, whatever its name
         dest=$(git -C "$dir" config "branch.$cur.merge" 2>/dev/null) || dest=""
         dest=${dest#refs/heads/}; [ -n "$dest" ] || prot=1 ;;
+      *) prot=1 ;;  # matching, nothing, or anything unknown
     esac
     dsts=("$dest"); srcs=("$cur")
     [ -n "$dest" ] || prot=1
@@ -186,7 +190,7 @@ track_cd() {
 classify() {
   local depth=$1; shift
   local -a w=("$@")
-  local i=0 t base use_dir=$DIR envprot=0 v saved str k m x
+  local i=0 t base use_dir=$DIR envprot=0 xprot=0 v saved str k m x
   while :; do
     [ "$i" -lt "${#w[@]}" ] || return 0
     t=${w[i]}
@@ -222,6 +226,7 @@ classify() {
         done
         ;;
       sudo|xargs|stdbuf|timeout|nice)
+        [ "$base" = xargs ] && xprot=1  # xargs appends arguments: the push is not what it seems
         i=$((i + 1))
         while [ "$i" -lt "${#w[@]}" ]; do
           case ${w[i]} in
@@ -272,6 +277,7 @@ classify() {
           *) break ;;
         esac
       done
+      [ "$xprot" = 1 ] && gdir=""
       [ "${a[j]:-}" = push ] && git_push "$gdir" "${a[@]:j+1}" ;;
     gh)
       while [ "$j" -lt "$n" ]; do

@@ -115,7 +115,7 @@ Push policy (spec `docs/superpowers/specs/2026-11-24-push-policy-design.md`):
 
 The full policy is in section 4 of `docs/superpowers/specs/2026-11-24-irreversible-ops-guard-design.md`.
 
-The rules live in `agents/claude/settings.fragment.json` and show in `/permissions`. The hook `hooks/guard-irreversible.sh` is the backstop. It also catches variants the rules miss, such as `git -C . push`, `/usr/bin/git push`, `bash -c '...'`, env-var prefixes and compound commands. The hook only adds friction. It never allows a command.
+The rules live in `agents/claude/settings.fragment.json` and show in `/permissions`. The hook `hooks/guard-irreversible.sh` is the backstop. It also catches variants the rules miss, such as `git -C . push origin main`, `/usr/bin/git push origin main`, `bash -c '...'`, env-var prefixes and compound commands. The hook only adds friction. It never allows a command.
 
 To run a refused command yourself, type it in the session with the `!` prefix, for example `! gh repo delete owner/name`.
 
@@ -123,7 +123,7 @@ Caveats:
 - This guards against an agent's mistakes. It is not a security boundary and does not stop deliberate evasion.
 - `install.sh` merges `permissions.deny`, `ask` and `allow` as a union with your own entries. If a later version of the policy drops a rule, the old entry stays in `~/.claude/settings.json`. Remove it by hand. `autoMode.soft_deny` (and `allow`, `hard_deny`, `environment` if the fragment defines them) merge the same way.
 - Manual upgrade step 1: remove the old `Bash(git push *)` entry from `permissions.ask` in `~/.claude/settings.json` (spec section 5.2).
-- Manual upgrade step 2: review the stale `autoMode` block written for another repository (`iceberg-platform-poc`) and remove it with your approval (spec section 5.4).
+- Manual upgrade step 2: review the stale `autoMode` block left by an earlier manual setup and remove it with your approval (spec section 5.4).
 
 ## Language rules
 

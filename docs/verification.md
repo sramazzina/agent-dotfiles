@@ -32,8 +32,8 @@ These need an interactive session and are checked when switching over (spec sect
 1. `/memory` lists `~/.claude/CLAUDE.md` and the imported `AGENTS.md`.
 2. The first session in an enabled project shows the external-import dialog once (and not again afterwards).
 3. In a project whose `settings.local.json` allows `Bash(gh pr:*)`, `gh pr merge` still prompts.
-4. `git -C . push` prompts through the hook.
-5. A subagent's `git push` prompts.
+4. `git -C . push origin main` prompts in default mode through the hook.
+5. A subagent's push to `main` is blocked or prompts.
 6. Push policy, auto mode: a push to a feature branch runs without a prompt.
 7. Push policy, auto mode: a push to `main` that you did not ask for is blocked.
 8. Push policy, auto mode: a push to `main` that you asked for runs without a prompt.

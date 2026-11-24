@@ -368,3 +368,45 @@ test_guard_env_split_string_ask() {
   assert_decision ask "env -S 'gh pr merge 1'"
   assert_decision ask "env --split-string='gh pr merge 1'"
 }
+
+test_push_heads_prefix_destination() {
+  make_repo feat/x
+  assert_push "$REPO" deny deny 'git push -f origin feat/x:heads/main'
+  assert_push "$REPO" deny deny 'git push origin +feat/x:heads/master'
+  assert_push "$REPO" none ask 'git push origin feat/x:heads/main'
+  assert_push "$REPO" none ask 'git push origin feat/x:refs/tags/v1'
+  assert_push "$REPO" none ask 'git push origin feat/x:refs/for/main'
+}
+
+test_push_via_xargs() {
+  make_repo feat/x
+  assert_push "$REPO" none ask 'echo main | xargs git push -f origin'
+  assert_push "$REPO" none ask 'echo main | xargs -I{} git push -f origin {}'
+  assert_push "$REPO" none ask "echo main | xargs git -C $REPO push origin"
+  assert_push "$REPO" none ask 'git push origin {}'
+  assert_push "$REPO" none ask 'git push origin ^main'
+  assert_push "$REPO" none ask 'git push origin ~1'
+}
+
+test_push_config_changes_bare_push() {
+  make_repo feat/x
+  git -C "$REPO" config push.default matching
+  assert_push "$REPO" none ask 'git push'
+  git -C "$REPO" config push.default current
+  assert_push "$REPO" none none 'git push'
+  git -C "$REPO" config push.default simple
+  assert_push "$REPO" none none 'git push'
+  git -C "$REPO" config --unset push.default
+  git -C "$REPO" config remote.origin.push HEAD:refs/heads/main
+  assert_push "$REPO" none ask 'git push'
+  assert_push "$REPO" none ask 'git push origin'
+}
+
+test_push_remote_lookup_order() {
+  make_repo feat/x
+  git -C "$REPO" config remote.pushDefault upstream
+  git -C "$REPO" config branch.feat/x.remote origin
+  assert_push "$REPO" none ask 'git push'
+  git -C "$REPO" config branch.feat/x.pushRemote origin
+  assert_push "$REPO" none none 'git push'
+}

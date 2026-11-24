@@ -86,7 +86,7 @@ Installer: `autoMode.soft_deny` (and `autoMode.allow`, `autoMode.hard_deny`, `au
 
 ### 5.4 Stale `autoMode` block
 
-The user's `settings.json` carries an `autoMode` block written for another repository (`iceberg-platform-poc`: `environment` and two `soft_deny` entries). The cutover shows it to the user and removes it with their approval, after the installer's backup. Not automated.
+The user's `settings.json` carries an `autoMode` block left by an earlier manual setup (`environment` and two `soft_deny` entries). The cutover shows it to the user and removes it with their approval, after the installer's backup. Not automated.
 
 ### 5.5 Tests
 
