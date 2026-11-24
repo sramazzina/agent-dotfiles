@@ -154,3 +154,14 @@ test_settings_permission_union_no_duplicates() {
   assert_eq "1" "$(jq '[.permissions.ask[] | select(. == "Bash(git push *)")] | length' "$HOME/.claude/settings.json")" "single entry"
   assert_not_contains "$OUT" "changed: settings" "second run quiet"
 }
+
+test_settings_guard_hook_registered_and_runs() {
+  setup_home
+  run_install
+  S="$HOME/.claude/settings.json"
+  CMD="~/.agent-dotfiles/hooks/guard-irreversible.sh"
+  assert_eq "true" "$(jq --arg c "$CMD" 'any(.hooks.PreToolUse[]; .matcher == "Bash" and any(.hooks[]; .type == "command" and .command == $c))' "$S")" "guard entry"
+  [ -x "$HOME/.agent-dotfiles/hooks/guard-irreversible.sh" ] || fail "hook not executable via anchor"
+  out="$(printf '%s' '{"tool_name":"Bash","tool_input":{"command":"gh pr merge 1"}}' | HOME="$HOME" bash -c "$CMD")"
+  assert_eq "ask" "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision')" "guard decision"
+}
