@@ -186,7 +186,7 @@ track_cd() {
 classify() {
   local depth=$1; shift
   local -a w=("$@")
-  local i=0 t base
+  local i=0 t base use_dir=$DIR envprot=0 v saved str k m x
   while :; do
     [ "$i" -lt "${#w[@]}" ] || return 0
     t=${w[i]}
@@ -194,7 +194,34 @@ classify() {
     base=${t##*/}
     case $base in
       then|do|else|if|while|until|elif|'!'|'{'|time|nohup|command|builtin|exec) i=$((i + 1)) ;;
-      env|sudo|xargs|stdbuf|timeout|nice)
+      env)
+        i=$((i + 1))
+        while [ "$i" -lt "${#w[@]}" ]; do
+          x=${w[i]}
+          case $x in
+            -C|--chdir|--chdir=*)
+              if [[ $x == --chdir=* ]]; then v=${x#--chdir=}; i=$((i + 1))
+              else v=${w[i+1]:-}; i=$((i + 2)); fi
+              saved=$DIR; DIR=$use_dir; track_cd cd "$v"; use_dir=$DIR; DIR=$saved ;;
+            -u|--unset) i=$((i + 2)) ;;
+            --unset=*|-i|-0|-v|--ignore-environment|--null|--debug|-) i=$((i + 1)) ;;
+            -S|--split-string|--split-string=*|-S?*)
+              case $x in
+                -S|--split-string) str="${w[*]:i+1}" ;;
+                --split-string=*) str="${x#--split-string=} ${w[*]:i+1}" ;;
+                *) str="${x#-S} ${w[*]:i+1}" ;;
+              esac
+              if [ "$depth" -lt 4 ]; then
+                saved=$DIR; DIR=$use_dir; scan "$str" $((depth + 1)); DIR=$saved
+              fi
+              return 0 ;;
+            -a|-P) envprot=1; i=$((i + 2)) ;;
+            -*) envprot=1; i=$((i + 1)) ;;
+            *) break ;;
+          esac
+        done
+        ;;
+      sudo|xargs|stdbuf|timeout|nice)
         i=$((i + 1))
         while [ "$i" -lt "${#w[@]}" ]; do
           case ${w[i]} in
@@ -214,7 +241,7 @@ classify() {
   done
   local prog=${w[i]##*/}
   local -a a=("${w[@]:i+1}")
-  local j=0 n=${#a[@]} g1 g2 x
+  local j=0 n=${#a[@]} g1 g2
 
   case $prog in
     cd|pushd|popd) track_cd "$prog" "${a[@]}" ;;
@@ -223,7 +250,7 @@ classify() {
         case ${a[j]} in
           -*c*) [[ ${a[j]} =~ ^-[a-zA-Z]*c[a-zA-Z]*$ ]] || continue
                 if [ "$depth" -lt 4 ] && [ $((j + 1)) -lt "$n" ]; then
-                  local saved=$DIR; scan "${a[j+1]}" $((depth + 1)); DIR=$saved
+                  saved=$DIR; DIR=$use_dir; scan "${a[j+1]}" $((depth + 1)); DIR=$saved
                 fi
                 return 0 ;;
           -*) ;;
@@ -231,7 +258,8 @@ classify() {
         esac
       done ;;
     git)
-      local gdir=$DIR
+      local gdir=$use_dir
+      [ "$envprot" = 1 ] && gdir=""
       while [ "$j" -lt "$n" ]; do
         case ${a[j]} in
           -C) x=${a[j+1]:-}
@@ -272,6 +300,17 @@ classify() {
         case ${a[j]} in -*) j=$((j + 1)) ;; *) break ;; esac
       done
       case "${a[j]:-} ${a[j+1]:-}" in "push "*|"image push") ask "docker push" ;; esac ;;
+    *)
+      # An unrecognised env option may hide the real program: look for a
+      # "git ... push" anywhere in the words and treat it as protected.
+      if [ "$envprot" = 1 ]; then
+        for ((k = 0; k < ${#w[@]}; k++)); do
+          [ "${w[k]##*/}" = git ] || continue
+          for ((m = k + 1; m < ${#w[@]}; m++)); do
+            if [ "${w[m]}" = push ]; then git_push "" "${w[@]:m+1}"; break 2; fi
+          done
+        done
+      fi ;;
   esac
   return 0
 }

@@ -345,3 +345,26 @@ test_push_cd_docs_only_uses_target_repo() {
   assert_push "$docs" none ask "cd $code && git push origin main"
   assert_push "$code" none none "cd $docs && git push origin main"
 }
+
+test_push_env_options() {
+  make_repo feat/x; local feat=$REPO
+  make_repo main; local mainr=$REPO
+  assert_push "$feat" none ask "env -C $mainr git push"
+  assert_push "$feat" none ask "env --chdir=$mainr git push origin main"
+  assert_push "$feat" none ask "env --chdir $mainr git push"
+  assert_push "$feat" none ask 'env -C "$X" git push'
+  assert_push "$feat" deny deny 'env -C /x git push --force origin main'
+  assert_push "$feat" deny deny 'env -u FOO git push --force origin main'
+  assert_push "$feat" deny deny 'env --unset=FOO -i git push -f origin main'
+  assert_push "$feat" none ask "env -S 'git -C $mainr push'"
+  assert_push "$feat" none none 'env -u FOO -i git push'
+  assert_push "$feat" none ask 'env --some-new-flag git push'
+  assert_push "$feat" none ask 'env -a foo git push'
+  assert_push "$mainr" none none "env -C $feat git push"
+  assert_push "$mainr" none none "env -C $feat FOO=1 git push"
+}
+
+test_guard_env_split_string_ask() {
+  assert_decision ask "env -S 'gh pr merge 1'"
+  assert_decision ask "env --split-string='gh pr merge 1'"
+}
