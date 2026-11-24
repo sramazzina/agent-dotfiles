@@ -22,6 +22,8 @@ test_guard_deny_cases() {
     'gh repo delete x/y --yes' \
     'git push --force origin main' \
     'git push -f origin HEAD:main' \
+    'git push -fu origin main' \
+    'git push origin HEAD:refs/heads/master --force-with-lease=main:abc' \
     'git push origin +main' \
     'git -C /tmp/r push --force-with-lease origin master' \
     'bash -c "git push -f origin main"'; do
@@ -52,7 +54,19 @@ test_guard_ask_cases() {
     'gh secret set TOKEN' \
     'gh api -X DELETE repos/o/r/git/refs/heads/x' \
     'gh api repos/o/r/pulls/1/merge -f merge_method=squash' \
-    "sh -c 'gh pr merge 1'"; do
+    "sh -c 'gh pr merge 1'" \
+    'git --git-dir=/x push' \
+    'nice -n 5 git push' \
+    'env FOO=1 git push' \
+    'gh --repo o/r release delete v1' \
+    'gh api --method PATCH repos/o/r' \
+    'gh api -XDELETE repos/o/r' \
+    'mvn deploy:deploy' \
+    'gh secret remove X' \
+    "bash -lc 'git push'" \
+    'timeout -s KILL 30 git push' \
+    'cat <<< "a b"; git push' \
+    "$(printf 'cat <<< foo\ngit push')"; do
     assert_decision ask "$c"
   done
 }
@@ -71,7 +85,8 @@ test_guard_no_decision_cases() {
     'mvn -B verify' \
     'docker pull x' \
     'gh secret list' \
-    'git tag v1.0.0'; do
+    'git tag v1.0.0' \
+    'gh api --method GET repos/o/r'; do
     assert_decision none "$c"
   done
 }
@@ -128,4 +143,16 @@ test_guard_fast_on_long_command() {
   t1="$(date +%s%N)"
   ms=$(( (t1 - t0) / 1000000 ))
   [ "$ms" -lt 2000 ] || fail "200-segment command took ${ms}ms"
+}
+
+test_guard_oversized_command_fallback() {
+  local pad harmful t0 t1 ms
+  pad="$(head -c 50000 /dev/zero | tr '\0' 'a')"
+  t0="$(date +%s%N)"
+  assert_decision none "echo $pad"
+  assert_decision ask "echo $pad && git push"
+  assert_decision none "$(printf 'cat <<EOF\n%s\nEOF' "$pad")"
+  t1="$(date +%s%N)"
+  ms=$(( (t1 - t0) / 1000000 ))
+  [ "$ms" -lt 3000 ] || fail "oversized commands took ${ms}ms"
 }

@@ -5,6 +5,12 @@
 # otherwise. It never prints "allow" and never exits 2. Pure text check: no
 # network, no git/gh calls.
 set -u
+# Byte-wise string indexing: avoids multibyte overhead on long commands.
+export LC_ALL=C
+
+# Above this size the tokenizer is skipped (it is quadratic in bash) and a
+# cheap conservative keyword check runs instead; it can only ask, never deny.
+MAX_PARSE_BYTES=8192
 
 DECISION=none
 REASON=""
@@ -24,7 +30,7 @@ emit() {
 
 # git_push <args after "push">
 git_push() {
-  local force=0 a rest dest
+  local force=0 a dest
   local -a pos=() dests=()
   while [ $# -gt 0 ]; do
     a=$1; shift
@@ -88,9 +94,9 @@ classify() {
         i=$((i + 1))
         while [ "$i" -lt "${#w[@]}" ]; do
           case ${w[i]} in
-            -u|-g|-I|-n|-P|-L|-d|-E|-i|-o|-e) # options taking a separate value
+            -u|-g|-I|-n|-P|-L|-d|-E|-i|-o|-e|-s|-k|--signal|--kill-after) # options taking a separate value
               case $base:${w[i]} in
-                env:-u|sudo:-u|sudo:-g|xargs:-*|nice:-n|stdbuf:-[ioe]) i=$((i + 2)) ;;
+                env:-u|sudo:-u|sudo:-g|xargs:-*|nice:-n|stdbuf:-[ioe]|timeout:-s|timeout:-k|timeout:--signal|timeout:--kill-after) i=$((i + 2)) ;;
                 *) i=$((i + 1)) ;;
               esac ;;
             -*) i=$((i + 1)) ;;
@@ -173,6 +179,8 @@ scan() {
     if [ "$q" = "'" ]; then
       if [ "$c" = "'" ]; then q=""; else cur+=$c; fi
     elif [ "$q" = '"' ]; then
+      # Note: pushes inside "$(...)" are not scanned here; Claude Code's own
+      # ask rules cover command substitutions.
       if [ "$c" = '"' ]; then q=""
       elif [ "$c" = '\' ] && [ -n "$nx" ]; then cur+=$nx; i=$((i + 1))
       else cur+=$c; fi
@@ -189,7 +197,9 @@ scan() {
         '&') # keep redirections like 2>&1, >&2 and &> inside the word
              if [ "${cur: -1}" = '>' ] || [ "${cur: -1}" = '<' ] || [ "$nx" = '>' ]; then cur+=$c; have=1
              else flush_seg; fi ;;
-        '<') if [ "$nx" = '<' ] && [ "${s:i+2:1}" != '<' ]; then
+        '<') if [ "${s:i:3}" = '<<<' ]; then
+               i=$((i + 2)) # herestring: plain redirect, no body
+             elif [ "$nx" = '<' ]; then
                # heredoc: read the delimiter word, queue it
                i=$((i + 2)); strip=0
                if [ "${s:i:1}" = '-' ]; then strip=1; i=$((i + 1)); fi
@@ -237,7 +247,16 @@ main() {
   [ "$tool" = Bash ] || return 0
   cmd=$(jq -r 'if (.tool_input.command|type)=="string" then .tool_input.command else "" end' <<<"$input" 2>/dev/null) || cmd=""
   [ -n "$cmd" ] || return 0
-  scan "$cmd" 0
+  if [ "${#cmd}" -gt "$MAX_PARSE_BYTES" ]; then
+    local sp='[[:space:]]'
+    if [[ $cmd =~ (^|[^[:alnum:]_])git$sp.*push ]]; then ask "git push (oversized command)"
+    elif [[ $cmd =~ (^|[^[:alnum:]_])gh$sp.*(pr${sp}+merge|release|repo${sp}+delete|workflow${sp}+run|secret|variable|api) ]]; then ask "gh (oversized command)"
+    elif [[ $cmd =~ deploy ]]; then ask "deploy (oversized command)"
+    elif [[ $cmd =~ (^|[^[:alnum:]_])docker$sp.*push ]]; then ask "docker push (oversized command)"
+    fi
+  else
+    scan "$cmd" 0
+  fi
   if [ "$DECISION" != none ]; then emit "$DECISION" "$REASON"; fi
   return 0
 }
