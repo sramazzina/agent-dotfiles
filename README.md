@@ -100,22 +100,30 @@ Refused (`deny`):
 - force push to `main` or `master`
 
 Prompt every time (`ask`):
-- any `git push`
 - `gh pr merge`
 - `gh release create | edit | delete | upload`
 - `mvn deploy`, `./mvnw deploy`, `docker push`
 - `gh workflow run`, `gh secret set | delete | remove`, `gh variable set | delete`
 - `gh api` calls that change data (`-X` other than `GET`, or any `-f`, `-F`, `--field`, `--raw-field`, `--input`)
 
+Push policy (spec `docs/superpowers/specs/2026-11-24-push-policy-design.md`):
+- A push to a feature branch is free. A docs-only push to `main` is free (only `README.md`, `CLAUDE.md`, `CHANGELOG.md` or `docs/HANDOFF*.md` change, on a remote other than `upstream`).
+- Any other push to `main`, `master` or the remote `upstream` needs your explicit request in auto mode. In other modes it prompts.
+- A force push to `main` or `master`, and deleting them, are denied.
+- In auto mode the hook gives no decision for protected pushes. The auto-mode classifier decides, using the `soft_deny` entry in the fragment's `autoMode` block.
+- The fragment sets `classifyAllShell: true`. Project `allow` lists no longer skip the classifier in auto mode.
+
 The full policy is in section 4 of `docs/superpowers/specs/2026-11-24-irreversible-ops-guard-design.md`.
 
-The rules live in `agents/claude/settings.fragment.json` and show in `/permissions`. The hook `hooks/guard-irreversible.sh` is the backstop. It also catches variants the rules miss, such as `git -C . push`, `/usr/bin/git push`, `bash -c '...'`, env-var prefixes and compound commands. The hook only adds friction. It never allows a command.
+The rules live in `agents/claude/settings.fragment.json` and show in `/permissions`. The hook `hooks/guard-irreversible.sh` is the backstop. It also catches variants the rules miss, such as `git -C . push origin main`, `/usr/bin/git push origin main`, `bash -c '...'`, env-var prefixes and compound commands. The hook only adds friction. It never allows a command.
 
 To run a refused command yourself, type it in the session with the `!` prefix, for example `! gh repo delete owner/name`.
 
 Caveats:
 - This guards against an agent's mistakes. It is not a security boundary and does not stop deliberate evasion.
-- `install.sh` merges `permissions.deny`, `ask` and `allow` as a union with your own entries. If a later version of the policy drops a rule, the old entry stays in `~/.claude/settings.json`. Remove it by hand.
+- `install.sh` merges `permissions.deny`, `ask` and `allow` as a union with your own entries. If a later version of the policy drops a rule, the old entry stays in `~/.claude/settings.json`. Remove it by hand. `autoMode.soft_deny` (and `allow`, `hard_deny`, `environment` if the fragment defines them) merge the same way.
+- Manual upgrade step 1: remove the old `Bash(git push *)` entry from `permissions.ask` in `~/.claude/settings.json` (spec section 5.2).
+- Manual upgrade step 2: review the stale `autoMode` block left by an earlier manual setup and remove it with your approval (spec section 5.4).
 
 ## Language rules
 

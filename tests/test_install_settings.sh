@@ -165,3 +165,33 @@ test_settings_guard_hook_registered_and_runs() {
   out="$(printf '%s' '{"tool_name":"Bash","tool_input":{"command":"gh pr merge 1"}}' | HOME="$HOME" bash -c "$CMD")"
   assert_eq "ask" "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision')" "guard decision"
 }
+
+SOFT_DENY_PUSH='git push to the main or master branch, or to the remote named upstream, of any repository — unless the user explicitly asked for that push in this conversation. This includes pushes with --tags, --all or --mirror. Exception: a non-forced push to main or master on a remote other than upstream whose commits change only README.md, CLAUDE.md, CHANGELOG.md or docs/HANDOFF*.md is allowed without asking (the dev profile'"'"'s direct-to-main exception).'
+
+test_settings_no_git_push_ask() {
+  setup_home
+  run_install
+  assert_eq "false" "$(jq '.permissions.ask | index("Bash(git push *)") != null' "$HOME/.claude/settings.json")" "no git push ask"
+}
+
+test_settings_automode_enforced() {
+  setup_home
+  run_install
+  S="$HOME/.claude/settings.json"
+  assert_eq "true" "$(jq '.autoMode.classifyAllShell == true' "$S")" "classifyAllShell"
+  assert_eq "true" "$(jq --slurpfile f "$FRAG" '.autoMode.soft_deny == $f[0].enforce.autoMode.soft_deny' "$S")" "soft_deny"
+  assert_eq "true" "$(jq --arg t "$SOFT_DENY_PUSH" '.autoMode.soft_deny == ["$defaults", $t]' "$S")" "soft_deny text"
+}
+
+test_settings_automode_union() {
+  setup_home
+  mkdir -p "$HOME/.claude"
+  echo '{"autoMode":{"environment":["x"],"soft_deny":["$defaults","user entry"]}}' > "$HOME/.claude/settings.json"
+  run_install
+  run_install
+  S="$HOME/.claude/settings.json"
+  assert_eq '["x"]' "$(jq -c '.autoMode.environment' "$S")" "environment kept"
+  assert_eq "true" "$(jq --arg t "$SOFT_DENY_PUSH" '.autoMode.soft_deny == ["$defaults","user entry",$t]' "$S")" "soft_deny union"
+  assert_eq "1" "$(jq '[.autoMode.soft_deny[] | select(. == "$defaults")] | length' "$S")" "defaults once"
+  assert_not_contains "$OUT" "changed: settings" "second run quiet"
+}
