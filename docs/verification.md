@@ -34,3 +34,8 @@ These need an interactive session and are checked when switching over (spec sect
 3. In a project whose `settings.local.json` allows `Bash(gh pr:*)`, `gh pr merge` still prompts.
 4. `git -C . push` prompts through the hook.
 5. A subagent's `git push` prompts.
+6. Push policy, auto mode: a push to a feature branch runs without a prompt.
+7. Push policy, auto mode: a push to `main` that you did not ask for is blocked.
+8. Push policy, auto mode: a push to `main` that you asked for runs without a prompt.
+9. Push policy, default mode: a push to `main` asks.
+10. A docs-only push to `main` (only `README.md`, `CLAUDE.md`, `CHANGELOG.md` or `docs/HANDOFF*.md` change) runs without a prompt.

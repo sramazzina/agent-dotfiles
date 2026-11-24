@@ -178,7 +178,9 @@ merge_settings() {
     $f[0] as $f
     | (($l * ($f.enforce | del(.hooks))) | .hooks = $f.enforce.hooks) as $m0
     | (reduce (["allow","ask","deny"][] | select($f.enforce.permissions[.] != null)) as $p ($m0;
-        .permissions[$p] = (($l.permissions[$p] // []) + ($f.enforce.permissions[$p] - ($l.permissions[$p] // []))))) as $m
+        .permissions[$p] = (($l.permissions[$p] // []) + ($f.enforce.permissions[$p] - ($l.permissions[$p] // []))))) as $m1
+    | (reduce (["soft_deny","allow","hard_deny","environment"][] | select($f.enforce.autoMode[.]? != null)) as $p ($m1;
+        .autoMode[$p] = (($l.autoMode[$p] // []) + ($f.enforce.autoMode[$p] - ($l.autoMode[$p] // []))))) as $m
     | reduce ($f.seed | keys[]) as $k ($m; if has($k) then . else .[$k] = $f.seed[$k] end)')" || {
     log "failed: settings (merge)"
     FAILED=1

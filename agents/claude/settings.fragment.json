@@ -9,7 +9,6 @@
         "Bash(gh repo delete *)"
       ],
       "ask": [
-        "Bash(git push *)",
         "Bash(gh pr merge *)",
         "Bash(gh release create *)",
         "Bash(gh release edit *)",
@@ -24,6 +23,13 @@
         "Bash(gh secret remove *)",
         "Bash(gh variable set *)",
         "Bash(gh variable delete *)"
+      ]
+    },
+    "autoMode": {
+      "classifyAllShell": true,
+      "soft_deny": [
+        "$defaults",
+        "git push to the main or master branch, or to the remote named upstream, of any repository — unless the user explicitly asked for that push in this conversation. This includes pushes with --tags, --all or --mirror. Exception: a non-forced push to main or master on a remote other than upstream whose commits change only README.md, CLAUDE.md, CHANGELOG.md or docs/HANDOFF*.md is allowed without asking (the dev profile's direct-to-main exception)."
       ]
     },
     "hooks": {
