@@ -31,3 +31,6 @@ These need an interactive session and are checked when switching over (spec sect
 
 1. `/memory` lists `~/.claude/CLAUDE.md` and the imported `AGENTS.md`.
 2. The first session in an enabled project shows the external-import dialog once (and not again afterwards).
+3. In a project whose `settings.local.json` allows `Bash(gh pr:*)`, `gh pr merge` still prompts.
+4. `git -C . push` prompts through the hook.
+5. A subagent's `git push` prompts.

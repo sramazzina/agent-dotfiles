@@ -126,3 +126,42 @@ test_settings_dangling_symlink() {
   assert_symlink_to "$HOME/.claude/settings.json" "$HOME/nowhere.json"
   [ ! -e "$HOME/nowhere.json" ] || fail "target created"
 }
+
+test_settings_permission_rules_installed() {
+  setup_home
+  run_install
+  S="$HOME/.claude/settings.json"
+  assert_eq "true" "$(jq 'any(.permissions.deny[]; . == "Bash(gh repo delete *)")' "$S")" "deny rule"
+  assert_eq "true" "$(jq --slurpfile f "$FRAG" '(.permissions.ask) as $a | $f[0].enforce.permissions.ask | all(. as $e | $a | index($e) != null)' "$S")" "ask rules"
+}
+
+test_settings_user_permission_entries_kept() {
+  setup_home
+  mkdir -p "$HOME/.claude"
+  echo '{"permissions":{"deny":["Bash(rm -rf /srv *)"],"ask":["Bash(kubectl delete *)"],"allow":["Bash(ls *)"]}}' > "$HOME/.claude/settings.json"
+  run_install
+  S="$HOME/.claude/settings.json"
+  assert_eq "true" "$(jq '.permissions.deny[0] == "Bash(rm -rf /srv *)" and .permissions.ask[0] == "Bash(kubectl delete *)" and .permissions.allow == ["Bash(ls *)"]' "$S")" "user entries first"
+  assert_eq "true" "$(jq --slurpfile f "$FRAG" '(.permissions.deny[1:] == $f[0].enforce.permissions.deny) and (.permissions.ask[1:] == $f[0].enforce.permissions.ask)' "$S")" "fragment entries follow"
+}
+
+test_settings_permission_union_no_duplicates() {
+  setup_home
+  mkdir -p "$HOME/.claude"
+  echo '{"permissions":{"ask":["Bash(git push *)"]}}' > "$HOME/.claude/settings.json"
+  run_install
+  run_install
+  assert_eq "1" "$(jq '[.permissions.ask[] | select(. == "Bash(git push *)")] | length' "$HOME/.claude/settings.json")" "single entry"
+  assert_not_contains "$OUT" "changed: settings" "second run quiet"
+}
+
+test_settings_guard_hook_registered_and_runs() {
+  setup_home
+  run_install
+  S="$HOME/.claude/settings.json"
+  CMD="~/.agent-dotfiles/hooks/guard-irreversible.sh"
+  assert_eq "true" "$(jq --arg c "$CMD" 'any(.hooks.PreToolUse[]; .matcher == "Bash" and any(.hooks[]; .type == "command" and .command == $c))' "$S")" "guard entry"
+  [ -x "$HOME/.agent-dotfiles/hooks/guard-irreversible.sh" ] || fail "hook not executable via anchor"
+  out="$(printf '%s' '{"tool_name":"Bash","tool_input":{"command":"gh pr merge 1"}}' | HOME="$HOME" bash -c "$CMD")"
+  assert_eq "ask" "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision')" "guard decision"
+}

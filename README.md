@@ -91,6 +91,32 @@ This adds the line `@~/.claude/profiles/dev.md` to `<project>/CLAUDE.local.md` (
 
 Universal rules apply with no action. Run `~/.agent-dotfiles/install.sh --enable-dev .` once in the project. If Claude detects a software project without the dev profile loaded, it says so at session start and offers to run that command (never for non-development work).
 
+## Irreversible-operations guard
+
+Some commands cannot be undone once they run. The installer sets rules and a hook so that Claude Code never runs them without you. This applies in the main session and in subagents, whatever a project allows.
+
+Refused (`deny`):
+- `gh repo delete`
+- force push to `main` or `master`
+
+Prompt every time (`ask`):
+- any `git push`
+- `gh pr merge`
+- `gh release create | edit | delete | upload`
+- `mvn deploy`, `./mvnw deploy`, `docker push`
+- `gh workflow run`, `gh secret set | delete | remove`, `gh variable set | delete`
+- `gh api` calls that change data (`-X` other than `GET`, or any `-f`, `-F`, `--field`, `--raw-field`, `--input`)
+
+The full policy is in section 4 of `docs/superpowers/specs/2026-11-24-irreversible-ops-guard-design.md`.
+
+The rules live in `agents/claude/settings.fragment.json` and show in `/permissions`. The hook `hooks/guard-irreversible.sh` is the backstop. It also catches variants the rules miss, such as `git -C . push`, `/usr/bin/git push`, `bash -c '...'`, env-var prefixes and compound commands. The hook only adds friction. It never allows a command.
+
+To run a refused command yourself, type it in the session with the `!` prefix, for example `! gh repo delete owner/name`.
+
+Caveats:
+- This guards against an agent's mistakes. It is not a security boundary and does not stop deliberate evasion.
+- `install.sh` merges `permissions.deny`, `ask` and `allow` as a union with your own entries. If a later version of the policy drops a rule, the old entry stays in `~/.claude/settings.json`. Remove it by hand.
+
 ## Language rules
 
 `rules/<lang>.md` carry `paths:` frontmatter and are symlinked into `~/.claude/rules/` (`RULES_LINK_MODE=symlink`, verified in `docs/verification.md`). A rule loads on the first read or write of a matching file, including creating a new one, not at session start. Known limitation: guidance is absent until that first touch; if that proves insufficient, Plan B (per-language import at session start) is tracked in issue #2.
