@@ -46,13 +46,13 @@ So `paths:` frontmatter filters `@` imports too: importing today's `rules/java.m
 - **Import target:** `@~/.agent-dotfiles/languages/<lang>.md`, directly (no symlink under `~/.claude`). `~/.agent-dotfiles` is already a symlink to the clone.
 - **CLI:** `--lang <lang>` is valid only together with `--enable-dev <dir>`, repeatable (`--lang java --lang python`). Each language import line is added idempotently, with the same create/append/unchanged logic and `log` lines as the dev-profile import. `--dry-run` honoured.
 - **Validation (my call):** an unknown language (no `languages/<lang>.md`) fails before any write, listing the available languages; exit 2 like other usage errors. `--lang` without `--enable-dev` is a usage error.
-- **Upgrade cleanup (my call):** `link_all` removes symlinks under `~/.claude/rules/` whose target lies inside `$REPO_ROOT/rules/` and no longer exists (logs `removed:`). Anything else in `~/.claude/rules/` is untouched.
+- **Upgrade cleanup:** no new code. The existing `scan_stale` already reports (never deletes) links into the clone whose source is gone, so after the upgrade it logs `stale: ~/.claude/rules/java.md`. Removing that link is a manual rollout step. (Revised during planning: the first draft had the installer delete it, which contradicts the installer's tested "report, never delete" policy — Rule 7, existing policy kept.)
 - **Docs:** README layer table and usage (`--lang`), design-spec §5.3/§5.4 note pointing here, `docs/verification.md` cutover check: in an enabled Java project, a session that has not touched any file states the Java/Maven rule. Close issue #2.
-- **Tests:** `--lang java` creates/appends the import, second run unchanged, repeatable flag, unknown language fails with no write, `--lang` without `--enable-dev` fails, stale-link cleanup removes only repo-owned dangling links, existing tests that reference `rules/java.md` updated.
+- **Tests:** `--lang java` creates/appends the import, second run unchanged, repeatable flag, unknown language fails with no write, `--lang` without `--enable-dev` fails, after the move a leftover `~/.claude/rules/java.md` link is reported as stale and kept, existing tests that reference `rules/java.md` updated.
 
 ## Rollout (after merge)
 
-`git pull` in `~/.agent-dotfiles`, `./install.sh` (removes the stale `~/.claude/rules/java.md` link), then `./install.sh --enable-dev <dir> --lang java` for cardine, hop-opentelemetry-plugin and data-loader-v2. Live check in one of them.
+`git pull` in `~/.agent-dotfiles`, `./install.sh` (reports `stale: ~/.claude/rules/java.md`), remove that link by hand, then `./install.sh --enable-dev <dir> --lang java` for cardine, hop-opentelemetry-plugin and data-loader-v2. Live check in one of them.
 
 ## Left to the builder
 
