@@ -43,6 +43,7 @@ test_language_files_have_no_frontmatter() {
     [ "$(head -n1 "$f")" != "---" ] || fail "frontmatter in $f"
   done
   grep -qF 'mvn -pl <module> -am -DskipITs verify' languages/java.md || fail "java verify command"
+  grep -qF 'shellcheck' languages/bash.md || fail "bash shellcheck"
 }
 
 test_skill_frontmatter() {
