@@ -321,7 +321,7 @@ add_import() {
 
 # Opt one project into the dev profile: CLAUDE.local.md imports + repo-local git exclude. Never commits.
 enable_dev() {
-  local dir="$1" file excl lang f available=""
+  local dir="$1" file excl lang f available="" seen=""
   if [ ! -d "$dir" ]; then
     echo "not a directory: $dir" >&2
     exit 2
@@ -330,7 +330,7 @@ enable_dev() {
     [ -e "$f" ] && available="$available $(basename "$f" .md)"
   done
   for lang in ${LANGS[@]+"${LANGS[@]}"}; do
-    if [ ! -f "$REPO_ROOT/languages/$lang.md" ]; then
+    if [[ ! "$lang" =~ ^[A-Za-z0-9_-]+$ ]] || [ ! -f "$REPO_ROOT/languages/$lang.md" ]; then
       echo "unknown language: $lang" >&2
       echo "available:$available" >&2
       exit 2
@@ -339,6 +339,8 @@ enable_dev() {
   file="$dir/CLAUDE.local.md"
   add_import "$file" '@~/.claude/profiles/dev.md'
   for lang in ${LANGS[@]+"${LANGS[@]}"}; do
+    case " $seen " in *" $lang "*) continue ;; esac
+    seen="$seen $lang"
     add_import "$file" "@~/.agent-dotfiles/languages/$lang.md"
   done
 

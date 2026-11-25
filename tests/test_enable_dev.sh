@@ -148,6 +148,23 @@ test_enable_dev_lang_repeated_same() {
   mkrepo "$TEST_HOME/proj"
   run_install --enable-dev "$TEST_HOME/proj" --lang java --lang java
   assert_eq "1" "$(grep -cxF "$LANG_JAVA" "$TEST_HOME/proj/CLAUDE.local.md")" "java lines"
+  assert_eq "2" "$(printf '%s\n' "$OUT" | grep -E '^(created|appended|unchanged):' | grep -c 'CLAUDE.local.md$')" "log lines"
+}
+
+test_enable_dev_lang_repeated_same_dry_run() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  run_install --dry-run --enable-dev "$TEST_HOME/proj" --lang java --lang java
+  assert_eq "2" "$(printf '%s\n' "$OUT" | grep -c '^DRY-RUN created:')" "dry-run created lines"
+}
+
+test_enable_dev_lang_rejects_path_like_name() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  run_install --enable-dev "$TEST_HOME/proj" --lang ../AGENTS
+  assert_eq "2" "$RC" "rc"
+  [ ! -e "$TEST_HOME/proj/CLAUDE.local.md" ] || fail "CLAUDE.local.md written"
+  assert_contains "$OUT" "unknown language: ../AGENTS" "unknown"
 }
 
 test_enable_dev_lang_unknown_writes_nothing() {
