@@ -16,14 +16,14 @@ Rule numbers are global across all layer files, never renumbered; Rule 6 is reti
 |---|---|---|
 | **Universal** (always on): `AGENTS.md`, `agents/claude/CLAUDE.md` | Rules 1, 3, 4, 5, 7, 10, 12; language and tone; documentation format; commit hygiene | Model routing; workflow skills (brainstorming, writing-plans) |
 | **Development** (per-project opt-in): `profiles/dev.md`, `agents/claude/dev.md` | Rules 2, 8, 9, 11, 13, 14, 16; sprints, issues, tests; git and PR rules | Rule 15; subagent-driven plan execution; tools section (context7, Serena); Bash chaining rule |
-| **Language**: `rules/*.md` | Rule content | `paths:` auto-activation |
+| **Language**: `languages/<lang>.md` | Rule content, imported per project via `--enable-dev <dir> --lang <lang>` | None |
 
 ## Repo layout
 
 ```
 AGENTS.md              neutral universal rules
 profiles/dev.md        neutral development rules
-rules/java.md          language rules (path-scoped for Claude)
+languages/java.md      language rules (imported per project)
 skills/                skills (serena-query-project)
 mcp/servers.json       neutral MCP manifest (secrets referenced by env-var name only)
 agents/claude/         Claude entry files + settings.fragment.json
@@ -40,7 +40,7 @@ docs/                  spec, plan, verification
 ## Install
 
 ```bash
-git clone git@github.com:sramazzina/agent-dotfiles.git ~/.agent-dotfiles   # private repo; any location works
+git clone git@github.com:sramazzina/agent-dotfiles.git ~/.agent-dotfiles   # any location works
 cd ~/.agent-dotfiles
 export CONTEXT7_API_KEY=...        # needed only for the first context7 registration on a server
 ./install.sh --dry-run             # review
@@ -50,7 +50,7 @@ export CONTEXT7_API_KEY=...        # needed only for the first context7 registra
 The installer is idempotent: re-running with nothing to change prints `unchanged:` lines and creates no backup. What it does:
 
 - Creates the anchor `~/.agent-dotfiles` (symlink to the clone; if the clone is already there it is left as-is). All imports use this anchor.
-- Symlinks `~/.claude/CLAUDE.md`, `~/.claude/profiles/dev.md`, each `rules/*.md` into `~/.claude/rules/`, and each skill into `~/.claude/skills/`. `~/.claude/skills/synced` is never touched.
+- Symlinks `~/.claude/CLAUDE.md`, `~/.claude/profiles/dev.md`, and each skill into `~/.claude/skills/`. `~/.claude/skills/synced` is never touched.
 - Merges `agents/claude/settings.fragment.json` into `~/.claude/settings.json` (a real, local file; a symlinked one is written through to its target). Enforced keys always win (`hooks` is replaced as a whole); seeded keys (`model`, `effortLevel`) are written only when absent. `autoMode` and any other local key are preserved.
 - Registers the MCP servers in `mcp/servers.json` at user scope via `claude mcp add`. An existing server with a different definition is reported as drift and never overwritten.
 - Backs up anything it replaces to `~/.agent-dotfiles-backups/<YYYYmmdd-HHMMSS>[-N]/` (path preserved relative to `$HOME`). The directory is created only when something is backed up.
@@ -82,14 +82,14 @@ Exit codes: `0` ok; `1` a `failed:` line, a missing `jq`/`claude`, or a skipped 
 The universal rules apply everywhere automatically. The development layer is opt-in per project:
 
 ```bash
-~/.agent-dotfiles/install.sh --enable-dev /path/to/project    # --dry-run supported
+~/.agent-dotfiles/install.sh --enable-dev /path/to/project [--lang <lang>]...    # --dry-run supported
 ```
 
-This adds the line `@~/.claude/profiles/dev.md` to `<project>/CLAUDE.local.md` (created if absent, no-op if present) and, in a git repo, adds `CLAUDE.local.md` to the repo-local `.git/info/exclude` (not `.gitignore`, so no tracked file changes; skipped if already ignored). It never commits. The first Claude session in the project shows a one-time external-import approval dialog: accept it (declining disables the import permanently for that project).
+This adds the line `@~/.claude/profiles/dev.md` to `<project>/CLAUDE.local.md` (created if absent, no-op if present) and, in a git repo, adds `CLAUDE.local.md` to the repo-local `.git/info/exclude` (not `.gitignore`, so no tracked file changes; skipped if already ignored). Each `--lang <lang>` (repeatable) then appends `@~/.agent-dotfiles/languages/<lang>.md` after the dev import, once per language. An unknown language name prints `unknown language: <name>` and `available: ...`, exits 2 and writes nothing. `--lang` without `--enable-dev` is a usage error. It never commits. The first Claude session in the project shows a one-time external-import approval dialog: accept it (declining disables the import permanently for that project).
 
 ### New project on an installed server
 
-Universal rules apply with no action. Run `~/.agent-dotfiles/install.sh --enable-dev .` once in the project. If Claude detects a software project without the dev profile loaded, it says so at session start and offers to run that command (never for non-development work).
+Universal rules apply with no action. Run `~/.agent-dotfiles/install.sh --enable-dev . [--lang <lang>]...` once in the project. If Claude detects a software project without the dev profile loaded, it says so at session start and offers to run that command, with `--lang` for each language that has a file in `languages/` (never for non-development work).
 
 ## Irreversible-operations guard
 
@@ -127,7 +127,13 @@ Caveats:
 
 ## Language rules
 
-`rules/<lang>.md` carry `paths:` frontmatter and are symlinked into `~/.claude/rules/` (`RULES_LINK_MODE=symlink`, verified in `docs/verification.md`). A rule loads on the first read or write of a matching file, including creating a new one, not at session start. Known limitation: guidance is absent until that first touch; if that proves insufficient, Plan B (per-language import at session start) is tracked in issue #2.
+`languages/<lang>.md` hold the language rules (no frontmatter, neutral wording). A project imports them at session start: `--enable-dev <dir> --lang <lang>` appends `@~/.agent-dotfiles/languages/<lang>.md` to its `CLAUDE.local.md`, after the dev import.
+
+Why an import and not path-scoped rules: a path-scoped rule loads only when Claude reads, writes or edits a matching file, and the dev profile routes code access through Serena. The guidance would be absent at the start of the session. This closes issue #2.
+
+To add a language, add one file `languages/<lang>.md` with no frontmatter and neutral wording. The name must match `^[A-Za-z0-9_-]+$`. No installer change is needed.
+
+Upgrade from the old layout: `install.sh` no longer links `rules/`, and never deletes links. A leftover `~/.claude/rules/java.md` is reported as `stale:`. Remove it by hand, then re-run `--enable-dev <dir> --lang java` for each Java project.
 
 ## Project convention for shared repos
 
@@ -135,7 +141,7 @@ Caveats:
 
 ## Editing rules
 
-Edit the files in this repo and commit. Symlinks mean changes are live without re-running `install.sh`. Re-run it only after adding new rule or skill files (new links) or changing `settings.fragment.json` or `mcp/servers.json`. Copy mode for rules is not implemented.
+Edit the files in this repo and commit. Symlinks mean changes are live without re-running `install.sh`. Re-run it only after adding new skill files (new links) or changing `settings.fragment.json` or `mcp/servers.json`. New language files need no re-run: projects import them by path.
 
 ## Never versioned
 

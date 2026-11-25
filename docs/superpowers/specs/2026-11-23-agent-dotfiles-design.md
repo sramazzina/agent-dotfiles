@@ -66,7 +66,7 @@ agent-dotfiles/
 ├── profiles/
 │   └── dev.md                    neutral development rules
 ├── rules/
-│   ├── java.md                   language rules; content neutral, `paths:` frontmatter for Claude
+│   ├── java.md                   language rules; content neutral, `paths:` frontmatter for Claude (superseded by `2026-11-25-language-layer-import-design.md`: now `languages/<lang>.md`)
 │   └── python.md
 ├── skills/
 │   └── serena-query-project/SKILL.md
@@ -97,14 +97,14 @@ Naming: the neutral core is `AGENTS.md` at the repo root (the cross-agent standa
 |---|---|---|
 | **Universal** (always on) — `AGENTS.md` / `agents/claude/CLAUDE.md` | Rules 1, 3, 4, 5, 7, 10, 12 · language & tone · documentation format (Markdown/HTML+SVG, Mermaid, Draw.io) | Model routing (Opus architect / Sonnet subagents) · workflow skills (superpowers brainstorming, writing-plans) |
 | **Development** (per-project opt-in) — `profiles/dev.md` / `agents/claude/dev.md` | Rules 2, 8, 9, 11, 13, 14, 16 · sprints, issues, tests · git & PR rules | Rule 15 (implementer prompts use Serena/context7) · subagent-driven plan execution · Tools section (context7, Serena, `serena-query-project` skill) · Bash chaining rule |
-| **Language** — `rules/*.md` | rule content | `paths:` auto-activation |
+| **Language** — `rules/*.md` (superseded by `2026-11-25-language-layer-import-design.md`: now `languages/<lang>.md`, imported per project) | rule content | `paths:` auto-activation |
 
 - Each file keeps the rule numbers; a short header line in each layer file states that numbering is global across layers, Rule 6 is reserved, and numbers must never change.
 - Cross-layer references (e.g. Rule 4 → Rule 16, subagent-driven execution) are kept as-is; they are harmless when the referenced layer is not loaded.
 - **Rule text source** (my call): the compacted wording in `drafts/global-CLAUDE.md.proposed`, cross-checked against the live `~/.claude/CLAUDE.md`. Tie-break: if the draft dropped an obligation present in the live file, the live obligation wins (re-added in compact form). The user reviews the resulting text in the PR diff.
 - The `serena-query-project` skill body is the live section "Using Serena `query_project` on another project", verbatim.
 - **Commit hygiene goes in the universal neutral layer** (my call): "no co-author references, no 'Generated with …' footer in commits/PRs" applies to any git work, including non-dev projects. The rest of the git/PR rules (branches, PR flow, direct-to-main exceptions, issue grouping) stay in dev.
-- **Language rules** (my call): create a real `rules/java.md` holding the Java/Maven specifics now embedded as examples in Rule 16 and the testing section (`mvn -pl <module> -am -DskipITs verify`, Testcontainers ITs needing a Docker socket). Rule 16 keeps a generic wording ("verify with the local test suite") and keeps its number. `paths:` globs: `**/*.java`, `**/pom.xml`. No `python.md` until there is content — no empty placeholders.
+- **Language rules** (superseded by `2026-11-25-language-layer-import-design.md`) (my call): create a real `rules/java.md` holding the Java/Maven specifics now embedded as examples in Rule 16 and the testing section (`mvn -pl <module> -am -DskipITs verify`, Testcontainers ITs needing a Docker socket). Rule 16 keeps a generic wording ("verify with the local test suite") and keeps its number. `paths:` globs: `**/*.java`, `**/pom.xml`. No `python.md` until there is content — no empty placeholders.
 
 ### 5.4 Claude Code wiring (what `install.sh` does)
 
@@ -113,7 +113,7 @@ Naming: the neutral core is `AGENTS.md` at the repo root (the cross-agent standa
 | `~/.agent-dotfiles` | symlink → clone |
 | `~/.claude/CLAUDE.md` | symlink → `agents/claude/CLAUDE.md` (which imports `@~/.agent-dotfiles/AGENTS.md`) |
 | `~/.claude/profiles/dev.md` | symlink → `agents/claude/dev.md` (which imports `@~/.agent-dotfiles/profiles/dev.md`) |
-| `~/.claude/rules/<file>.md` | per-file symlink → `rules/<file>.md` (per-file, not the whole directory, so local rules can coexist) |
+| `~/.claude/rules/<file>.md` (superseded by `2026-11-25-language-layer-import-design.md`: no longer linked) | per-file symlink → `rules/<file>.md` (per-file, not the whole directory, so local rules can coexist) |
 | `~/.claude/skills/<name>` | per-skill symlink → `skills/<name>`; `synced/` untouched |
 | `~/.claude/settings.json` | real file; `settings.fragment.json` deep-merged in with `jq` (fragment wins on its own keys; all other keys untouched) |
 | MCP servers | for each entry in `mcp/servers.json`: `claude mcp add --scope user` if missing; if present with a different definition, report drift and leave it (no silent overwrite) |
@@ -142,7 +142,7 @@ Neutral list: per server a name, transport (`stdio` / `http`), command+args or U
 - Only the Claude adapter is implemented; structure leaves room for `--agent <name>` later, but no flag is added now.
 - **`--enable-dev <project-dir>`** (user's choice): enables the dev profile for one project. It ensures `<project-dir>/CLAUDE.local.md` contains the line `@~/.claude/profiles/dev.md` (creating the file if absent, appending if missing, no-op if present) and that `CLAUDE.local.md` is ignored when the directory is a git repo (no-op if already ignored per `git check-ignore`; otherwise appended to the repo-local exclude file `git rev-parse --git-path info/exclude`, not `.gitignore`, so no tracked file changes — safe for upstream clones; amended 2026-11-23 during planning). It touches nothing else in the project, never commits, and reports what it changed. Idempotent and covered by tests. Reminder printed: the first session in that project will show Claude Code's one-time approval dialog for the external import — accept it.
 - **Dev profile check** (added 2026-11-23, user-approved): `agents/claude/CLAUDE.md` tells Claude that if the current project is a software development project and the dev profile is not loaded, it must say so at session start and offer to run `~/.agent-dotfiles/install.sh --enable-dev <project-dir>`; never for non-development work. Covers new projects created on an already-installed server.
-- **Plan B for language rules** (deferred, tracked in its own issue): path-scoped language rules load only on first touch of a matching file. If that proves insufficient, add `--enable-dev --lang <lang>` to import per-language rules at session start. Not built now.
+- **Plan B for language rules** (deferred, tracked in its own issue): path-scoped language rules load only on first touch of a matching file. If that proves insufficient, add `--enable-dev --lang <lang>` to import per-language rules at session start. Not built now. (Superseded by `2026-11-25-language-layer-import-design.md`: built as `--enable-dev <dir> --lang <lang>`.)
 
 ### 5.7 Notes for future adapters (`agents/<agent>/NOTES.md`)
 

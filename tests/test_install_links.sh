@@ -6,7 +6,7 @@ test_fresh_install_links() {
   assert_symlink_to "$HOME/.agent-dotfiles" "$REPO_ROOT"
   assert_symlink_to "$HOME/.claude/CLAUDE.md" "$REPO_ROOT/agents/claude/CLAUDE.md"
   assert_symlink_to "$HOME/.claude/profiles/dev.md" "$REPO_ROOT/agents/claude/dev.md"
-  assert_symlink_to "$HOME/.claude/rules/java.md" "$REPO_ROOT/rules/java.md"
+  { [ ! -e "$HOME/.claude/rules/java.md" ] && [ ! -L "$HOME/.claude/rules/java.md" ]; } || fail "rules layer still linked"
   assert_symlink_to "$HOME/.claude/skills/serena-query-project" "$REPO_ROOT/skills/serena-query-project"
   assert_contains "$OUT" "linked: $HOME/.claude/CLAUDE.md" "summary"
 }
@@ -67,6 +67,15 @@ test_stale_link_reported() {
   [ -L "$HOME/.claude/rules/gone.md" ] || fail "stale link removed"
 }
 
+test_old_rules_link_reported_stale() {
+  setup_home
+  mkdir -p "$HOME/.claude/rules"
+  ln -s "$REPO_ROOT/rules/java.md" "$HOME/.claude/rules/java.md"
+  run_install
+  assert_contains "$OUT" "stale: $HOME/.claude/rules/java.md" "stale"
+  [ -L "$HOME/.claude/rules/java.md" ] || fail "old link removed"
+}
+
 test_dry_run_changes_nothing() {
   setup_home
   local before after
@@ -102,7 +111,7 @@ test_usage_error() {
 test_clone_at_anchor_location() {
   setup_home
   mkdir "$HOME/.agent-dotfiles"
-  cp -a "$REPO_ROOT/install.sh" "$REPO_ROOT/agents" "$REPO_ROOT/rules" "$REPO_ROOT/skills" "$HOME/.agent-dotfiles/"
+  cp -a "$REPO_ROOT/install.sh" "$REPO_ROOT/agents" "$REPO_ROOT/languages" "$REPO_ROOT/skills" "$HOME/.agent-dotfiles/"
   set +e
   OUT="$(env PATH="$TEST_HOME/bin:$PATH" "$HOME/.agent-dotfiles/install.sh" 2>&1)"
   set -e
@@ -111,7 +120,7 @@ test_clone_at_anchor_location() {
   assert_contains "$OUT" "unchanged: $HOME/.agent-dotfiles" "anchor"
   [ ! -e "$HOME/.agent-dotfiles-backups" ] || fail "repo was backed up"
   assert_symlink_to "$HOME/.claude/CLAUDE.md" "$HOME/.agent-dotfiles/agents/claude/CLAUDE.md"
-  [ -e "$HOME/.claude/rules/java.md" ] || fail "rule link dangles"
+  [ -f "$HOME/.agent-dotfiles/languages/java.md" ] || fail "language file missing"
 }
 
 test_backups_never_collide() {
@@ -130,11 +139,11 @@ test_backups_never_collide() {
 
 test_link_failure_is_reported_and_run_continues() {
   setup_home
-  mkdir -p "$HOME/.claude/rules"
-  chmod 555 "$HOME/.claude/rules"
+  mkdir -p "$HOME/.claude/profiles"
+  chmod 555 "$HOME/.claude/profiles"
   run_install
-  chmod 755 "$HOME/.claude/rules"
+  chmod 755 "$HOME/.claude/profiles"
   assert_eq 1 "$RC" "exit"
-  assert_contains "$OUT" "failed: link $HOME/.claude/rules/" "failed line"
+  assert_contains "$OUT" "failed: link $HOME/.claude/profiles/" "failed line"
   [ -f "$HOME/.claude/settings.json" ] || fail "settings step did not run"
 }

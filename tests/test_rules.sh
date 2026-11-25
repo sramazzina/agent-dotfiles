@@ -1,5 +1,5 @@
 LAYERS="AGENTS.md profiles/dev.md agents/claude/dev.md"
-NEUTRAL="AGENTS.md profiles/dev.md rules/*.md"
+NEUTRAL="AGENTS.md profiles/dev.md languages/*.md"
 
 test_rule_numbers_unique() {
   cd "$REPO_ROOT"
@@ -36,13 +36,13 @@ test_claude_entries_import_existing_files() {
   [ "$n" -ge 2 ] || fail "expected at least 2 imports, found $n"
 }
 
-test_java_rule_paths() {
+test_language_files_have_no_frontmatter() {
   cd "$REPO_ROOT"
-  local fm
-  fm="$(awk 'NR==1&&/^---$/{f=1;next} f&&/^---$/{exit} f' rules/java.md)"
-  assert_contains "$fm" 'paths:' "frontmatter paths"
-  assert_contains "$fm" '**/*.java' "java glob"
-  assert_contains "$fm" '**/pom.xml' "pom glob"
+  local f
+  for f in languages/*.md; do
+    [ "$(head -n1 "$f")" != "---" ] || fail "frontmatter in $f"
+  done
+  grep -qF 'mvn -pl <module> -am -DskipITs verify' languages/java.md || fail "java verify command"
 }
 
 test_skill_frontmatter() {
@@ -100,4 +100,16 @@ test_model_routing_single_section() {
   assert_contains "$body" 'web research' "web research delegated"
   assert_contains "$body" 'judges their findings' "Opus judges findings"
   assert_contains "$body" 'ask the user first' "escalation asks the user"
+}
+
+test_dev_profile_check_mentions_lang() {
+  cd "$REPO_ROOT"
+  sed -n '/^# Dev profile check/,$p' agents/claude/CLAUDE.md | grep -qF -- '--lang' \
+    || fail "Dev profile check does not mention --lang"
+}
+
+test_readme_has_no_path_scoped_language_layer() {
+  cd "$REPO_ROOT"
+  if grep -qF 'paths:' README.md; then fail "README still mentions paths: auto-activation"; fi
+  grep -qF -- '--lang' README.md || fail "README does not mention --lang"
 }
