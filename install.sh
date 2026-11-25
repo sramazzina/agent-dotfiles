@@ -6,6 +6,7 @@ REPO_ROOT="$(cd "$(dirname "$(readlink -f "$0")")" && pwd -P)"
 DRY_RUN=0
 FAILED=0
 ENABLE_DEV_DIR=""
+LANGS=()
 # AGENT_DOTFILES_TS overrides the backup timestamp (tests only).
 BACKUP_TS="${AGENT_DOTFILES_TS:-$(date +%Y%m%d-%H%M%S)}"
 BACKUP_DIR="$HOME/.agent-dotfiles-backups/$BACKUP_TS"
@@ -15,7 +16,8 @@ usage() {
   cat <<'USAGE'
 Usage:
   install.sh [--dry-run]                     full Claude Code install
-  install.sh --enable-dev <dir> [--dry-run]  enable dev profile in one project
+  install.sh --enable-dev <dir> [--lang <lang>]... [--dry-run]
+                                             enable dev profile (and language rules) in one project
   install.sh --help
 USAGE
 }
@@ -106,11 +108,6 @@ link_all() {
   link_to "$HOME/.agent-dotfiles" "$REPO_ROOT"
   link_to "$HOME/.claude/CLAUDE.md" "$REPO_ROOT/agents/claude/CLAUDE.md"
   link_to "$HOME/.claude/profiles/dev.md" "$REPO_ROOT/agents/claude/dev.md"
-  # Rules: symlink mode (decided in docs/verification.md); copy mode is not implemented.
-  for f in "$REPO_ROOT"/rules/*.md; do
-    [ -e "$f" ] || continue
-    link_to "$HOME/.claude/rules/$(basename "$f")" "$f"
-  done
   for d in "$REPO_ROOT"/skills/*/; do
     [ -d "$d" ] || continue
     name="$(basename "$d")"
@@ -305,26 +302,45 @@ register_mcp() {
   done < <(jq -c '.servers[]' "$manifest")
 }
 
-# Opt one project into the dev profile: CLAUDE.local.md import + repo-local git exclude. Never commits.
-enable_dev() {
-  local dir="$1" file excl import='@~/.claude/profiles/dev.md'
-  if [ ! -d "$dir" ]; then
-    echo "not a directory: $dir" >&2
-    exit 2
-  fi
-  file="$dir/CLAUDE.local.md"
+# Ensure <line> is in <file>: create, append, or leave unchanged. Honors DRY_RUN.
+add_import() {
+  local file="$1" line="$2"
   if [ ! -e "$file" ]; then
-    [ "$DRY_RUN" = 1 ] || printf '%s\n' "$import" > "$file" || { log "failed: $file (write)"; FAILED=1; return 0; }
+    [ "$DRY_RUN" = 1 ] || printf '%s\n' "$line" > "$file" || { log "failed: $file (write)"; FAILED=1; return 0; }
     log "created: $file"
-  elif tr -d '\r' < "$file" | grep -qxF "$import"; then
+  elif tr -d '\r' < "$file" | grep -qxF "$line"; then
     log "unchanged: $file"
   else
     if [ "$DRY_RUN" = 0 ]; then
-      { [ ! -s "$file" ] || [ -z "$(tail -c1 "$file")" ] || printf '\n'; printf '%s\n' "$import"; } >> "$file" \
+      { [ ! -s "$file" ] || [ -z "$(tail -c1 "$file")" ] || printf '\n'; printf '%s\n' "$line"; } >> "$file" \
         || { log "failed: $file (append)"; FAILED=1; return 0; }
     fi
     log "appended: $file"
   fi
+}
+
+# Opt one project into the dev profile: CLAUDE.local.md imports + repo-local git exclude. Never commits.
+enable_dev() {
+  local dir="$1" file excl lang f available=""
+  if [ ! -d "$dir" ]; then
+    echo "not a directory: $dir" >&2
+    exit 2
+  fi
+  for f in "$REPO_ROOT"/languages/*.md; do
+    [ -e "$f" ] && available="$available $(basename "$f" .md)"
+  done
+  for lang in ${LANGS[@]+"${LANGS[@]}"}; do
+    if [ ! -f "$REPO_ROOT/languages/$lang.md" ]; then
+      echo "unknown language: $lang" >&2
+      echo "available:$available" >&2
+      exit 2
+    fi
+  done
+  file="$dir/CLAUDE.local.md"
+  add_import "$file" '@~/.claude/profiles/dev.md'
+  for lang in ${LANGS[@]+"${LANGS[@]}"}; do
+    add_import "$file" "@~/.agent-dotfiles/languages/$lang.md"
+  done
 
   if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     if git -C "$dir" check-ignore -q CLAUDE.local.md; then
@@ -355,11 +371,19 @@ main() {
       --enable-dev)
         [ $# -ge 2 ] && [ -n "$2" ] || { usage >&2; exit 2; }
         ENABLE_DEV_DIR="$2"; shift ;;
+      --lang)
+        [ $# -ge 2 ] && [ -n "$2" ] || { usage >&2; exit 2; }
+        LANGS+=("$2"); shift ;;
       --help|-h) usage; exit 0 ;;
       *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
     shift
   done
+
+  if [ ${#LANGS[@]} -gt 0 ] && [ -z "$ENABLE_DEV_DIR" ]; then
+    usage >&2
+    exit 2
+  fi
 
   if [ -n "$ENABLE_DEV_DIR" ]; then
     enable_dev "$ENABLE_DEV_DIR"

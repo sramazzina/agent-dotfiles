@@ -108,3 +108,78 @@ test_enable_dev_crlf_import_detected() {
   assert_contains "$OUT" "unchanged: $TEST_HOME/proj/CLAUDE.local.md" "unchanged"
   assert_eq "1" "$(tr -d '\r' < "$TEST_HOME/proj/CLAUDE.local.md" | grep -cxF "$IMPORT")" "import lines"
 }
+
+LANG_JAVA='@~/.agent-dotfiles/languages/java.md'
+
+test_enable_dev_lang_creates_both_lines() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  run_install --enable-dev "$TEST_HOME/proj" --lang java
+  assert_eq "0" "$RC" "rc"
+  assert_eq "2" "$(wc -l < "$TEST_HOME/proj/CLAUDE.local.md")" "two lines"
+  assert_eq "$IMPORT" "$(sed -n 1p "$TEST_HOME/proj/CLAUDE.local.md")" "line 1"
+  assert_eq "$LANG_JAVA" "$(sed -n 2p "$TEST_HOME/proj/CLAUDE.local.md")" "line 2"
+}
+
+test_enable_dev_lang_on_already_enabled_project() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  printf '%s\n' "$IMPORT" > "$TEST_HOME/proj/CLAUDE.local.md"
+  run_install --enable-dev "$TEST_HOME/proj" --lang java
+  assert_eq "$IMPORT" "$(sed -n 1p "$TEST_HOME/proj/CLAUDE.local.md")" "line 1"
+  assert_eq "$LANG_JAVA" "$(sed -n 2p "$TEST_HOME/proj/CLAUDE.local.md")" "line 2"
+  assert_eq "2" "$(wc -l < "$TEST_HOME/proj/CLAUDE.local.md")" "two lines"
+  assert_contains "$OUT" "unchanged:" "unchanged"
+  assert_contains "$OUT" "appended:" "appended"
+}
+
+test_enable_dev_lang_idempotent() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  run_install --enable-dev "$TEST_HOME/proj" --lang java
+  run_install --enable-dev "$TEST_HOME/proj" --lang java
+  assert_eq "2" "$(wc -l < "$TEST_HOME/proj/CLAUDE.local.md")" "two lines"
+  assert_not_contains "$OUT" "appended:" "no appended"
+  assert_not_contains "$OUT" "created:" "no created"
+}
+
+test_enable_dev_lang_repeated_same() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  run_install --enable-dev "$TEST_HOME/proj" --lang java --lang java
+  assert_eq "1" "$(grep -cxF "$LANG_JAVA" "$TEST_HOME/proj/CLAUDE.local.md")" "java lines"
+}
+
+test_enable_dev_lang_unknown_writes_nothing() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  run_install --enable-dev "$TEST_HOME/proj" --lang java --lang cobol
+  assert_eq "2" "$RC" "rc"
+  [ ! -e "$TEST_HOME/proj/CLAUDE.local.md" ] || fail "CLAUDE.local.md written"
+  ! grep -qxF 'CLAUDE.local.md' "$TEST_HOME/proj/.git/info/exclude" || fail "exclude written"
+  assert_contains "$OUT" "unknown language: cobol" "unknown"
+  assert_contains "$OUT" "available: java" "available"
+}
+
+test_lang_without_enable_dev_is_usage_error() {
+  setup_home
+  run_install --lang java
+  assert_eq "2" "$RC" "rc"
+  assert_contains "$OUT" "Usage:" "usage"
+  [ ! -e "$HOME/.claude/CLAUDE.md" ] && [ ! -L "$HOME/.claude/CLAUDE.md" ] || fail "install ran"
+}
+
+test_enable_dev_lang_missing_value() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  run_install --enable-dev "$TEST_HOME/proj" --lang
+  assert_eq "2" "$RC" "rc"
+}
+
+test_enable_dev_lang_dry_run() {
+  setup_home
+  mkrepo "$TEST_HOME/proj"
+  run_install --dry-run --enable-dev "$TEST_HOME/proj" --lang java
+  [ ! -e "$TEST_HOME/proj/CLAUDE.local.md" ] || fail "file written in dry run"
+  assert_contains "$OUT" "DRY-RUN created:" "dry-run created"
+}

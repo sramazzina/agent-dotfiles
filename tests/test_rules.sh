@@ -1,5 +1,5 @@
 LAYERS="AGENTS.md profiles/dev.md agents/claude/dev.md"
-NEUTRAL="AGENTS.md profiles/dev.md rules/*.md"
+NEUTRAL="AGENTS.md profiles/dev.md languages/*.md"
 
 test_rule_numbers_unique() {
   cd "$REPO_ROOT"
@@ -36,13 +36,13 @@ test_claude_entries_import_existing_files() {
   [ "$n" -ge 2 ] || fail "expected at least 2 imports, found $n"
 }
 
-test_java_rule_paths() {
+test_language_files_have_no_frontmatter() {
   cd "$REPO_ROOT"
-  local fm
-  fm="$(awk 'NR==1&&/^---$/{f=1;next} f&&/^---$/{exit} f' rules/java.md)"
-  assert_contains "$fm" 'paths:' "frontmatter paths"
-  assert_contains "$fm" '**/*.java' "java glob"
-  assert_contains "$fm" '**/pom.xml' "pom glob"
+  local f
+  for f in languages/*.md; do
+    [ "$(head -n1 "$f")" != "---" ] || fail "frontmatter in $f"
+  done
+  grep -qF 'mvn -pl <module> -am -DskipITs verify' languages/java.md || fail "java verify command"
 }
 
 test_skill_frontmatter() {

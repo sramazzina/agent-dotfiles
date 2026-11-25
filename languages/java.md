@@ -1,6 +1,3 @@
----
-paths: ["**/*.java", "**/pom.xml"]
----
 # Java / Maven
 
 Applies Rules 9 and 16 to Java projects.
