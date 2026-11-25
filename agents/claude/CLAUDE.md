@@ -12,4 +12,4 @@
 - ALWAYS use `superpowers:writing-plans` to write plans.
 
 # Dev profile check
-If the current project is a software development project and the dev profile is not loaded (Rules 2, 8, 9, 11, 13–16 are not in your context), say so to the user at the start of the session and offer to run `~/.agent-dotfiles/install.sh --enable-dev <project-dir>`. Do not raise it for non-development work.
+If the current project is a software development project and the dev profile is not loaded (Rules 2, 8, 9, 11, 13–16 are not in your context), say so to the user at the start of the session and offer to run `~/.agent-dotfiles/install.sh --enable-dev <project-dir> --lang <lang>`, with one `--lang` for each language of the project that has a file in `~/.agent-dotfiles/languages/`. If the dev profile is loaded but the import for the project's language is missing, say so and offer the same command. Do not raise it for non-development work.

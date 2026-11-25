@@ -39,3 +39,4 @@ These need an interactive session and are checked when switching over (spec sect
 8. Push policy, auto mode: a push to `main` that you asked for runs without a prompt.
 9. Push policy, default mode: a push to `main` asks.
 10. A docs-only push to `main` (only `README.md`, `CLAUDE.md`, `CHANGELOG.md` or `docs/HANDOFF*.md` change) runs without a prompt.
+11. In a project enabled with `--lang java`, a new session that has not touched any file states the Java/Maven rule (`mvn -pl <module> -am -DskipITs verify`).

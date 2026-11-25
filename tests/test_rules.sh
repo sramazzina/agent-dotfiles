@@ -101,3 +101,15 @@ test_model_routing_single_section() {
   assert_contains "$body" 'judges their findings' "Opus judges findings"
   assert_contains "$body" 'ask the user first' "escalation asks the user"
 }
+
+test_dev_profile_check_mentions_lang() {
+  cd "$REPO_ROOT"
+  sed -n '/^# Dev profile check/,$p' agents/claude/CLAUDE.md | grep -qF -- '--lang' \
+    || fail "Dev profile check does not mention --lang"
+}
+
+test_readme_has_no_path_scoped_language_layer() {
+  cd "$REPO_ROOT"
+  if grep -qF 'paths:' README.md; then fail "README still mentions paths: auto-activation"; fi
+  grep -qF -- '--lang' README.md || fail "README does not mention --lang"
+}
