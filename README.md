@@ -40,7 +40,7 @@ docs/                  spec, plan, verification
 ## Install
 
 ```bash
-git clone git@github.com:sramazzina/agent-dotfiles.git ~/.agent-dotfiles   # private repo; any location works
+git clone git@github.com:sramazzina/agent-dotfiles.git ~/.agent-dotfiles   # any location works
 cd ~/.agent-dotfiles
 export CONTEXT7_API_KEY=...        # needed only for the first context7 registration on a server
 ./install.sh --dry-run             # review
