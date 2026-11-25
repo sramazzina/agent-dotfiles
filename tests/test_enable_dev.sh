@@ -175,7 +175,9 @@ test_enable_dev_lang_unknown_writes_nothing() {
   [ ! -e "$TEST_HOME/proj/CLAUDE.local.md" ] || fail "CLAUDE.local.md written"
   ! grep -qxF 'CLAUDE.local.md' "$TEST_HOME/proj/.git/info/exclude" || fail "exclude written"
   assert_contains "$OUT" "unknown language: cobol" "unknown"
-  assert_contains "$OUT" "available: java" "available"
+  assert_contains "$OUT" "available:" "available"
+  assert_contains "$(printf "%s\n" "$OUT" | grep "available:")" "bash" "available bash"
+  assert_contains "$(printf "%s\n" "$OUT" | grep "available:")" "java" "available java"
 }
 
 test_lang_without_enable_dev_is_usage_error() {

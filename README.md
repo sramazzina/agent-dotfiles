@@ -23,6 +23,7 @@ Rule numbers are global across all layer files, never renumbered; Rule 6 is reti
 ```
 AGENTS.md              neutral universal rules
 profiles/dev.md        neutral development rules
+languages/bash.md      language rules (imported per project)
 languages/java.md      language rules (imported per project)
 skills/                skills (serena-query-project)
 mcp/servers.json       neutral MCP manifest (secrets referenced by env-var name only)
