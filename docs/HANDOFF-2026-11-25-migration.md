@@ -20,6 +20,7 @@ Per project, one at a time, the user names it:
 | hop-opentelemetry-plugin | dev, Java, development paused (Hop parent intentionally behind) | `--lang java` (earlier) | CLAUDE.md 137 → 76, pushed |
 | hop-sqlserver-bulk-loader | dev, Java | `--lang java` today | CLAUDE.md trimmed, release doc fixed (patch by default, minor when planned, CHANGELOG decides), pushed |
 | hop-parquet-plugin-enhanced | dev, Java, development paused | `--lang java` today | CLAUDE.md 95 → 35, tracked memory files removed, project `docs/HANDOFF-2026-11-25-resume.md` lists release inconsistencies; pushed. Local branch `fix/39-propagate-previous-fields` unpushed (user's WIP) |
+| hop-process-template-plugins | dev, Java | `--lang java` today | CLAUDE.md 160 → 45 (commit `54ec137` on `main`, NOT pushed). Untracked `.claude/` removed (held an expired hard-coded GitHub token). Tracked `.serena/memories/*.md` overlap the removed content (left as is); `.serena/project.yml` has an unrelated uncommitted Serena regeneration |
 | clickup-to-odoo | non-dev (Hop flow files) | none, by choice | CLAUDE.md trimmed; project keeps a temporary override: no issues, no branches, no PRs, commit on `main`. 29 local commits NOT pushed (user pushes). Odoo-write hook item recorded in its `docs/HANDOFF-2026-10-31.md` |
 | openmetadata-demo | non-dev (demo environment) | none, by choice | CLAUDE.md 66 → 12 with an explicit git workflow (environment changes via branch + PR; docs/runbooks/slides/handoff direct to `main` — inferred from history, user to confirm); pushed |
 
