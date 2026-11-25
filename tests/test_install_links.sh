@@ -6,7 +6,7 @@ test_fresh_install_links() {
   assert_symlink_to "$HOME/.agent-dotfiles" "$REPO_ROOT"
   assert_symlink_to "$HOME/.claude/CLAUDE.md" "$REPO_ROOT/agents/claude/CLAUDE.md"
   assert_symlink_to "$HOME/.claude/profiles/dev.md" "$REPO_ROOT/agents/claude/dev.md"
-  [ ! -e "$HOME/.claude/rules/java.md" ] || fail "rules layer still linked"
+  { [ ! -e "$HOME/.claude/rules/java.md" ] && [ ! -L "$HOME/.claude/rules/java.md" ]; } || fail "rules layer still linked"
   assert_symlink_to "$HOME/.claude/skills/serena-query-project" "$REPO_ROOT/skills/serena-query-project"
   assert_contains "$OUT" "linked: $HOME/.claude/CLAUDE.md" "summary"
 }

@@ -1,6 +1,6 @@
 # Language layer loaded at session start — design (issue #2)
 
-Date: 2026-11-25. Status: draft for approval. Size: small change (short design).
+Date: 2026-11-25. Status: approved (2026-11-25). Size: small change (short design).
 
 ## Intent
 

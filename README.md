@@ -89,7 +89,7 @@ This adds the line `@~/.claude/profiles/dev.md` to `<project>/CLAUDE.local.md` (
 
 ### New project on an installed server
 
-Universal rules apply with no action. Run `~/.agent-dotfiles/install.sh --enable-dev . --lang <lang>` once in the project. If Claude detects a software project without the dev profile loaded, it says so at session start and offers to run that command, with `--lang` for each language that has a file in `languages/` (never for non-development work).
+Universal rules apply with no action. Run `~/.agent-dotfiles/install.sh --enable-dev . [--lang <lang>]...` once in the project. If Claude detects a software project without the dev profile loaded, it says so at session start and offers to run that command, with `--lang` for each language that has a file in `languages/` (never for non-development work).
 
 ## Irreversible-operations guard
 
@@ -129,7 +129,7 @@ Caveats:
 
 `languages/<lang>.md` hold the language rules (no frontmatter, neutral wording). A project imports them at session start: `--enable-dev <dir> --lang <lang>` appends `@~/.agent-dotfiles/languages/<lang>.md` to its `CLAUDE.local.md`, after the dev import.
 
-Why an import and not path-scoped rules: a path-scoped rule loads only when Claude reads, writes or edits a matching file, and the dev profile routes code access through Serena. The guidance would be absent at the start of the session. This closes issue #2 (closed by this change).
+Why an import and not path-scoped rules: a path-scoped rule loads only when Claude reads, writes or edits a matching file, and the dev profile routes code access through Serena. The guidance would be absent at the start of the session. This closes issue #2.
 
 To add a language, add one file `languages/<lang>.md` with no frontmatter and neutral wording. The name must match `^[A-Za-z0-9_-]+$`. No installer change is needed.
 
