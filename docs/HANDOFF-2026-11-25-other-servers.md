@@ -34,7 +34,7 @@ So every server needs the user-level install plus `--enable-dev` in each dev pro
 | coster-hop-plugins | A | `--lang java` | lives under `work/customers/Coster/`, not `work/serasoft/`; a local untracked `.claude/` is now ignored by `.gitignore` |
 | clickup-to-odoo | B | none | on sera01, 29 commits were not pushed (the user pushes). If they are still unpushed, the trimmed CLAUDE.md is not on the remote yet: ask the user before pulling |
 | openmetadata-demo | B | none | |
-| iceberg-platform-poc | B | none | lives under `work/sramazzina/`; GitHub repo renamed `iceberg-platform-lab` (old URL redirects) |
+| iceberg-platform-lab | B | none | lives under `work/sramazzina/`; formerly `iceberg-platform-poc`. Developed mainly on an AWS server: a clone there may still use the old directory name and remote URL (GitHub redirects) |
 
 A project that combines languages passes one `--lang` per language (e.g. `--lang java --lang bash`). A new language gets its `languages/<lang>.md` (issue + PR) only with its first real project.
 
