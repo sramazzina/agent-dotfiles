@@ -31,6 +31,7 @@ So every server needs the user-level install plus `--enable-dev` in each dev pro
 | hop-parquet-plugin-enhanced | A | `--lang java` | development paused |
 | hop-process-template-plugins | A | `--lang java` | |
 | serasoft-vscan | A | `--lang bash` | tracked `.claude/settings.local.json` was removed from the repo: a local copy with uncommitted changes blocks the pull until moved away |
+| coster-hop-plugins | A | `--lang java` | lives under `work/customers/Coster/`, not `work/serasoft/`; a local untracked `.claude/` is now ignored by `.gitignore` |
 | clickup-to-odoo | B | none | on sera01, 29 commits were not pushed (the user pushes). If they are still unpushed, the trimmed CLAUDE.md is not on the remote yet: ask the user before pulling |
 | openmetadata-demo | B | none | |
 
